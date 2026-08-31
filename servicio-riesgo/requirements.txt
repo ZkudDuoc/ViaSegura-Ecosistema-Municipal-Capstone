@@ -1,8 +1,8 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-pandas==2.2.2
-scikit-learn==1.5.1
-geopandas==1.0.1
-shapely==2.0.5
-pydantic==2.8.2
-python-dotenv==1.0.1
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+pandas==3.0.5
+scikit-learn==1.9.0
+geopandas==1.1.4
+shapely==2.1.2
+pydantic==2.13.5
+python-dotenv==1.2.3
