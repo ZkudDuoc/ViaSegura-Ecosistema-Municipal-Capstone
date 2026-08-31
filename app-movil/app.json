@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "VíaSegura",
+    "slug": "viasegura-app-movil",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0B5FFF"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
