@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const authRoutes = require('./routes/auth.routes');
 
 const app = express();
 app.use(cors());
@@ -10,6 +11,13 @@ app.use(express.json());
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', module: 'backend-core' });
+});
+
+app.use('/api/auth', authRoutes);
+
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: 'Error interno del servidor' });
 });
 
 const server = http.createServer(app);
