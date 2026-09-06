@@ -25,8 +25,8 @@ LON_RANGE = (-70.70, -70.60)
 
 # Metros por grado, aproximado para la latitud de la comuna piloto — solo
 # se usa para dibujar el polígono cuadrado de cada manzana simulada.
-METERS_PER_DEGREE_LAT = 111_320
-METERS_PER_DEGREE_LON = 92_800
+METROS_POR_GRADO_LAT = 111_320
+METROS_POR_GRADO_LON = 92_800
 
 REQUIRED_COLUMNS = [
     "id_manzana",
@@ -38,7 +38,7 @@ REQUIRED_COLUMNS = [
 ]
 
 
-def generate_simulated_census(path: Path, n: int = 150, seed: int = 7) -> None:
+def generar_censo_simulado(path: Path, n: int = 150, seed: int = 7) -> None:
     """Genera un CSV de manzanas censales simuladas si el archivo no existe."""
     if path.exists():
         return
@@ -64,14 +64,14 @@ def generate_simulated_census(path: Path, n: int = 150, seed: int = 7) -> None:
     df.to_csv(path, index=False)
 
 
-def _square_polygon(lat: float, lon: float, superficie_m2: float):
+def trazar_poligono(lat: float, lon: float, superficie_m2: float):
     lado_m = superficie_m2**0.5
-    dlat = (lado_m / 2) / METERS_PER_DEGREE_LAT
-    dlon = (lado_m / 2) / METERS_PER_DEGREE_LON
+    dlat = (lado_m / 2) / METROS_POR_GRADO_LAT
+    dlon = (lado_m / 2) / METROS_POR_GRADO_LON
     return box(lon - dlon, lat - dlat, lon + dlon, lat + dlat)
 
 
-def load_census(path: Path) -> gpd.GeoDataFrame:
+def cargar_censo(path: Path) -> gpd.GeoDataFrame:
     """Carga, limpia y normaliza el dataset censal del INE por manzana.
 
     Limpieza aplicada:
@@ -104,14 +104,14 @@ def load_census(path: Path) -> gpd.GeoDataFrame:
 
     df["densidad_hab_km2"] = df["poblacion"] / (df["superficie_m2"] / 1_000_000)
 
-    min_d, max_d = df["densidad_hab_km2"].min(), df["densidad_hab_km2"].max()
-    rango = max_d - min_d
+    densidad_min, densidad_max = df["densidad_hab_km2"].min(), df["densidad_hab_km2"].max()
+    rango = densidad_max - densidad_min
     df["densidad_normalizada"] = (
-        (df["densidad_hab_km2"] - min_d) / rango if rango > 0 else 0.0
+        (df["densidad_hab_km2"] - densidad_min) / rango if rango > 0 else 0.0
     )
 
     geometry = [
-        _square_polygon(row.latitud, row.longitud, row.superficie_m2)
+        trazar_poligono(row.latitud, row.longitud, row.superficie_m2)
         for row in df.itertuples()
     ]
 

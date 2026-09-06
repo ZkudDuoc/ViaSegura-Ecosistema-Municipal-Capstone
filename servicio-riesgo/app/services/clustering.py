@@ -6,7 +6,7 @@ más peligroso que uno más pequeño en una manzana casi vacía: el primero
 puede ser sólo reflejo de que ahí vive/circula más gente. Por eso el
 ranking de "zona roja" no usa el conteo crudo de incidentes por cluster,
 sino ese conteo dividido por la densidad poblacional normalizada
-(0-1, calculada en app/data/census.py) del área del cluster.
+(0-1, calculada en app/data/censo.py) del área del cluster.
 
 Los clusters se calculan una vez al levantar el servicio (lifespan de
 FastAPI) sobre el dataset completo, y se sirven desde caché en
@@ -28,46 +28,50 @@ DENSIDAD_SUAVIZADO = 0.1  # evita división por ~0 en manzanas casi vacías
 
 
 def _asignar_densidad_censal(
-    incidents_gdf: gpd.GeoDataFrame, census_gdf: gpd.GeoDataFrame
+    gdf_incidentes: gpd.GeoDataFrame, gdf_censo: gpd.GeoDataFrame
 ) -> pd.Series:
     """Asigna a cada incidente la densidad_normalizada de la manzana censal
     que lo contiene, vía join espacial; incidentes fuera de toda manzana
     conocida reciben la densidad promedio del dataset como fallback neutro."""
-    joined = gpd.sjoin(
-        incidents_gdf[["geometry"]],
-        census_gdf[["geometry", "densidad_normalizada"]],
+    cruce_espacial = gpd.sjoin(
+        gdf_incidentes[["geometry"]],
+        gdf_censo[["geometry", "densidad_normalizada"]],
         how="left",
         predicate="within",
     )
-    joined = joined[~joined.index.duplicated(keep="first")]
-    fallback = float(census_gdf["densidad_normalizada"].mean())
-    return joined["densidad_normalizada"].reindex(incidents_gdf.index).fillna(fallback)
+    cruce_espacial = cruce_espacial[~cruce_espacial.index.duplicated(keep="first")]
+    fallback = float(gdf_censo["densidad_normalizada"].mean())
+    return (
+        cruce_espacial["densidad_normalizada"]
+        .reindex(gdf_incidentes.index)
+        .fillna(fallback)
+    )
 
 
 def calcular_zonas_rojas(
-    incidents_gdf: gpd.GeoDataFrame,
-    census_gdf: gpd.GeoDataFrame,
+    gdf_incidentes: gpd.GeoDataFrame,
+    gdf_censo: gpd.GeoDataFrame,
     eps_km: float = EPS_KM,
     min_samples: int = MIN_SAMPLES,
 ) -> list[dict]:
-    if len(incidents_gdf) == 0:
+    if len(gdf_incidentes) == 0:
         return []
 
-    coords_rad = np.radians(incidents_gdf[["latitud", "longitud"]].to_numpy())
+    coords_rad = np.radians(gdf_incidentes[["latitud", "longitud"]].to_numpy())
     eps_rad = eps_km / EARTH_RADIUS_KM
 
     labels = DBSCAN(
         eps=eps_rad, min_samples=min_samples, metric="haversine"
     ).fit_predict(coords_rad)
 
-    incidents_gdf = incidents_gdf.copy()
-    incidents_gdf["cluster"] = labels
-    incidents_gdf["densidad_normalizada"] = _asignar_densidad_censal(
-        incidents_gdf, census_gdf
+    gdf_incidentes = gdf_incidentes.copy()
+    gdf_incidentes["cluster"] = labels
+    gdf_incidentes["densidad_normalizada"] = _asignar_densidad_censal(
+        gdf_incidentes, gdf_censo
     )
 
     indices = []
-    for cluster_id, grupo in incidents_gdf[incidents_gdf["cluster"] != -1].groupby(
+    for cluster_id, grupo in gdf_incidentes[gdf_incidentes["cluster"] != -1].groupby(
         "cluster"
     ):
         n_incidentes = len(grupo)

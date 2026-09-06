@@ -29,10 +29,10 @@ def _distancia_circular_dias(fecha_a: date, fecha_b: date) -> int:
     """Distancia en días entre dos fechas ignorando el año (circular sobre
     365 días), para capturar patrones estacionales ("misma época del año")
     en vez de exigir coincidencia exacta de año con el dataset histórico."""
-    doy_a = fecha_a.timetuple().tm_yday
-    doy_b = fecha_b.timetuple().tm_yday
-    diff = abs(doy_a - doy_b)
-    return min(diff, 365 - diff)
+    dia_anio_a = fecha_a.timetuple().tm_yday
+    dia_anio_b = fecha_b.timetuple().tm_yday
+    diff_days = abs(dia_anio_a - dia_anio_b)
+    return min(diff_days, 365 - diff_days)
 
 
 def _nivel_desde_score(risk_score: float) -> str:
@@ -44,13 +44,13 @@ def _nivel_desde_score(risk_score: float) -> str:
 
 
 def calcular_score(
-    incidents_gdf: gpd.GeoDataFrame,
-    census_gdf: gpd.GeoDataFrame,
+    gdf_incidentes: gpd.GeoDataFrame,
+    gdf_censo: gpd.GeoDataFrame,
     poligono: BaseGeometry,
     fecha: date,
     ventana_dias: int = VENTANA_DIAS,
 ) -> dict:
-    incidentes_en_zona = incidents_gdf[incidents_gdf.within(poligono)]
+    incidentes_en_zona = gdf_incidentes[gdf_incidentes.within(poligono)]
 
     if len(incidentes_en_zona) > 0:
         distancias = incidentes_en_zona["fecha"].apply(
@@ -66,11 +66,11 @@ def calcular_score(
         .map(GRAVEDAD_PESOS)
         .fillna(0)
     )
-    weighted_sum = float(pesos.sum())
+    suma_ponderada = float(pesos.sum())
 
-    risk_score = round(100 * (1 - math.exp(-weighted_sum / RISK_TAU)), 2)
+    risk_score = round(100 * (1 - math.exp(-suma_ponderada / RISK_TAU)), 2)
 
-    manzanas_en_zona = census_gdf[census_gdf.intersects(poligono)]
+    manzanas_en_zona = gdf_censo[gdf_censo.intersects(poligono)]
     if len(manzanas_en_zona) > 0:
         congestion_score = round(
             float(manzanas_en_zona["densidad_normalizada"].mean()) * 100, 2

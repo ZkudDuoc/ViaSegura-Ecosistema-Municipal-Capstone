@@ -16,8 +16,8 @@ from shapely.geometry import Point
 
 # Bbox aproximado de la comuna piloto (Santiago, RM) usado solo para
 # simular coordenadas plausibles de incidentes.
-LAT_RANGE = (-33.50, -33.40)
-LON_RANGE = (-70.70, -70.60)
+RANGO_LAT = (-33.50, -33.40)
+RANGO_LON = (-70.70, -70.60)
 
 TIPOS_INCIDENTE = [
     "robo_con_violencia",
@@ -40,7 +40,7 @@ REQUIRED_COLUMNS = [
 ]
 
 
-def generate_simulated_incidents(path: Path, n: int = 600, seed: int = 42) -> None:
+def generar_incidentes_simulados(path: Path, n: int = 600, seed: int = 42) -> None:
     """Genera un CSV de incidentes simulados si el archivo no existe."""
     if path.exists():
         return
@@ -57,8 +57,8 @@ def generate_simulated_incidents(path: Path, n: int = 600, seed: int = 42) -> No
             "id_incidente": np.arange(1, n + 1),
             "fecha": fechas.strftime("%Y-%m-%d"),
             "tipo_incidente": rng.choice(TIPOS_INCIDENTE, size=n),
-            "latitud": rng.uniform(*LAT_RANGE, size=n).round(6),
-            "longitud": rng.uniform(*LON_RANGE, size=n).round(6),
+            "latitud": rng.uniform(*RANGO_LAT, size=n).round(6),
+            "longitud": rng.uniform(*RANGO_LON, size=n).round(6),
             "comuna": "Comuna Piloto",
             "gravedad": rng.choice(
                 GRAVEDAD_CATEGORIAS, size=n, p=[0.5, 0.35, 0.15]
@@ -67,14 +67,14 @@ def generate_simulated_incidents(path: Path, n: int = 600, seed: int = 42) -> No
     )
 
     # Inyecta algo de suciedad realista (nulos, duplicados) para que la
-    # limpieza en load_incidents() tenga algo concreto que resolver.
+    # limpieza en cargar_incidentes() tenga algo concreto que resolver.
     df.loc[rng.choice(n, size=max(1, n // 100), replace=False), "gravedad"] = None
     df = pd.concat([df, df.sample(3, random_state=seed)], ignore_index=True)
 
     df.to_csv(path, index=False)
 
 
-def load_incidents(path: Path) -> pd.DataFrame:
+def cargar_incidentes(path: Path) -> pd.DataFrame:
     """Carga y limpia el dataset de incidentes delictivos.
 
     Limpieza aplicada:

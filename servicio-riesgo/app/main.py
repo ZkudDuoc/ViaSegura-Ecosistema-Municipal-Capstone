@@ -6,11 +6,11 @@ from shapely.geometry import shape
 from shapely.errors import GEOSException
 
 from app import config
-from app.data.census import generate_simulated_census, load_census
+from app.data.censo import cargar_censo, generar_censo_simulado
 from app.data.incidents import (
     as_geodataframe,
-    generate_simulated_incidents,
-    load_incidents,
+    cargar_incidentes,
+    generar_incidentes_simulados,
 )
 from app.schemas import ScoreRequest, ScoreResponse, ZonasRojasResponse
 from app.services.clustering import EPS_KM, MIN_SAMPLES, calcular_zonas_rojas
@@ -21,11 +21,11 @@ logger = logging.getLogger("servicio-riesgo")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    generate_simulated_incidents(config.INCIDENTS_DATASET_PATH)
-    generate_simulated_census(config.INE_CENSUS_DATA_PATH)
+    generar_incidentes_simulados(config.INCIDENTS_DATASET_PATH)
+    generar_censo_simulado(config.INE_CENSUS_DATA_PATH)
 
-    app.state.incidents = load_incidents(config.INCIDENTS_DATASET_PATH)
-    app.state.census = load_census(config.INE_CENSUS_DATA_PATH)
+    app.state.incidents = cargar_incidentes(config.INCIDENTS_DATASET_PATH)
+    app.state.census = cargar_censo(config.INE_CENSUS_DATA_PATH)
     app.state.incidents_gdf = as_geodataframe(app.state.incidents)
 
     app.state.zonas_rojas = calcular_zonas_rojas(
@@ -70,8 +70,8 @@ def score(payload: ScoreRequest, request: Request):
         raise HTTPException(status_code=400, detail="Polígono inválido (geometría no válida)")
 
     resultado = calcular_score(
-        incidents_gdf=request.app.state.incidents_gdf,
-        census_gdf=request.app.state.census,
+        gdf_incidentes=request.app.state.incidents_gdf,
+        gdf_censo=request.app.state.census,
         poligono=poligono,
         fecha=payload.fecha,
     )
