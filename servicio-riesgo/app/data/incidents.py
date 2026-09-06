@@ -9,8 +9,10 @@ forma independiente.
 
 from pathlib import Path
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
+from shapely.geometry import Point
 
 # Bbox aproximado de la comuna piloto (Santiago, RM) usado solo para
 # simular coordenadas plausibles de incidentes.
@@ -109,3 +111,11 @@ def load_incidents(path: Path) -> pd.DataFrame:
     df["comuna"] = df["comuna"].str.strip()
 
     return df.reset_index(drop=True)
+
+
+def as_geodataframe(df: pd.DataFrame) -> gpd.GeoDataFrame:
+    """Convierte el DataFrame de incidentes limpio a GeoDataFrame (puntos),
+    para poder cruzarlo espacialmente contra el polígono de una solicitud
+    (endpoint /score) y contra las manzanas censales (clustering)."""
+    geometry = [Point(lon, lat) for lon, lat in zip(df["longitud"], df["latitud"])]
+    return gpd.GeoDataFrame(df, geometry=geometry, crs="EPSG:4326")
