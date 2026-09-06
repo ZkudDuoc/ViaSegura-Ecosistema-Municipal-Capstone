@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="VíaSegura — Microservicio de Inteligencia Geoespacial",
+    title="ViaSegura",
     lifespan=lifespan,
 )
 
