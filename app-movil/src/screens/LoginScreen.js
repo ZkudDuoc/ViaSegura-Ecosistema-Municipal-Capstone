@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useAuth } from "../context/AuthContext";
-import { useRole, ROLES } from "../context/RoleContext";
+import { useRole } from "../context/RoleContext";
 import { colors } from "../theme";
 import CatalogPicker from "../components/CatalogPicker";
 import { listarComunas, listarEmpresas } from "../services/catalogService";
@@ -19,19 +19,13 @@ import { listarComunas, listarEmpresas } from "../services/catalogService";
 // "OPERADOR" sueltos). CHOFER/LOGISTICA requieren empresa_id; los roles
 // _MUNICIPAL requieren comuna_id (constraint usuario_rol_scope).
 const ROLES_REGISTRO = [
-  { value: "CHOFER", label: "Chofer / Logística", ui: ROLES.CHOFER, scope: "empresa" },
-  { value: "INSPECTOR_MUNICIPAL", label: "Inspector", ui: ROLES.INSPECTOR, scope: "comuna" },
+  { value: "CHOFER", label: "Chofer / Logística", scope: "empresa" },
+  { value: "INSPECTOR_MUNICIPAL", label: "Inspector", scope: "comuna" },
 ];
-
-const ROL_BACKEND_A_UI = {
-  CHOFER: ROLES.CHOFER,
-  LOGISTICA: ROLES.CHOFER,
-  INSPECTOR_MUNICIPAL: ROLES.INSPECTOR,
-};
 
 export default function LoginScreen() {
   const { login, registrar, loading, error } = useAuth();
-  const { setRole, setDemoMode } = useRole();
+  const { setDemoMode } = useRole();
   const [modo, setModo] = useState("login"); // "login" | "registro"
 
   const [email, setEmail] = useState("");
@@ -44,21 +38,15 @@ export default function LoginScreen() {
 
   const scopeActivo = ROLES_REGISTRO.find((r) => r.value === rol)?.scope;
 
-  const aplicarRolUI = (usuario) => {
-    const rolUI = ROL_BACKEND_A_UI[usuario.rol];
-    if (!rolUI) {
-      throw new Error(`Rol "${usuario.rol}" no está soportado en la app móvil`);
-    }
-    setRole(rolUI);
-  };
-
+  // Tras un login/registro exitoso no hace falta hacer nada más acá: el
+  // RootNavigator deriva el rol de navegación directamente de `usuario.rol`
+  // (ver context/RoleContext.js) y navega solo en cuanto cambia.
   const handleSubmit = async () => {
     try {
       if (modo === "login") {
-        const data = await login(email, password);
-        aplicarRolUI(data.usuario);
+        await login(email, password);
       } else {
-        const data = await registrar({
+        await registrar({
           rol,
           nombre,
           rut,
@@ -67,7 +55,6 @@ export default function LoginScreen() {
           empresa_id: scopeActivo === "empresa" ? empresaId : undefined,
           comuna_id: scopeActivo === "comuna" ? comunaId : undefined,
         });
-        aplicarRolUI(data.usuario);
       }
     } catch (err) {
       // el error ya queda expuesto vía useAuth().error

@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Platform,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import DateTimePicker, { DateTimePickerAndroid } from "@react-native-community/datetimepicker";
 import { colors } from "../../theme";
 import PolygonMapPicker from "../../components/PolygonMapPicker";
 import CatalogPicker from "../../components/CatalogPicker";
@@ -61,24 +61,58 @@ function cerrarPoligono(area) {
   return [...area, primerPunto];
 }
 
+// En Android, <DateTimePicker> como componente declarativo tiene un bug
+// conocido al desmontarse ("Cannot read property 'dismiss' of undefined",
+// confirmado en dispositivo real) y tampoco soporta mode="datetime" nativo
+// — hay que usar la API imperativa (DateTimePickerAndroid.open) encadenando
+// selector de fecha y de hora. iOS sí soporta el componente declarativo con
+// mode="datetime" sin problemas.
+function abrirPickerAndroid(valorActual, onChange) {
+  DateTimePickerAndroid.open({
+    value: valorActual ?? new Date(),
+    mode: "date",
+    onChange: (event, fechaElegida) => {
+      if (event.type !== "set" || !fechaElegida) return;
+      DateTimePickerAndroid.open({
+        value: fechaElegida,
+        mode: "time",
+        onChange: (eventoHora, horaElegida) => {
+          if (eventoHora.type !== "set" || !horaElegida) return;
+          const combinado = new Date(fechaElegida);
+          combinado.setHours(horaElegida.getHours(), horaElegida.getMinutes());
+          onChange(combinado);
+        },
+      });
+    },
+  });
+}
+
 function DateField({ label, value, onChange }) {
-  const [showPicker, setShowPicker] = useState(false);
+  const [showPickerIOS, setShowPickerIOS] = useState(false);
+
+  const handlePress = () => {
+    if (Platform.OS === "android") {
+      abrirPickerAndroid(value, onChange);
+    } else {
+      setShowPickerIOS(true);
+    }
+  };
 
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <Pressable style={styles.fieldInput} onPress={() => setShowPicker(true)}>
+      <Pressable style={styles.fieldInput} onPress={handlePress}>
         <Text style={value ? styles.dateValue : styles.datePlaceholder}>
           {value ? value.toLocaleString() : "Toca para elegir fecha y hora"}
         </Text>
       </Pressable>
-      {showPicker && (
+      {Platform.OS !== "android" && showPickerIOS && (
         <DateTimePicker
           value={value ?? new Date()}
           mode="datetime"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
+          display="spinner"
           onChange={(event, selectedDate) => {
-            setShowPicker(false);
+            setShowPickerIOS(false);
             if (selectedDate) onChange(selectedDate);
           }}
         />

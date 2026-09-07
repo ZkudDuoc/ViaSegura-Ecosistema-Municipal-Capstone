@@ -1,23 +1,28 @@
 import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { useRole, ROLES } from "../context/RoleContext";
+import { useRole, ROLES, rolBackendAUI } from "../context/RoleContext";
 import { useAuth } from "../context/AuthContext";
 import LoginScreen from "../screens/LoginScreen";
 import RoleSelectScreen from "../screens/RoleSelectScreen";
+import RolNoSoportadoScreen from "../screens/RolNoSoportadoScreen";
 import ChoferTabs from "./ChoferTabs";
 import InspectorTabs from "./InspectorTabs";
 
 const Stack = createNativeStackNavigator();
 
 export default function RootNavigator() {
-  const { role, demoMode } = useRole();
+  const { role: rolDemo, demoMode } = useRole();
   const { usuario } = useAuth();
 
-  // Con login real el rol se autoasigna en LoginScreen; a RoleSelectScreen
-  // sólo se llega en modo demo (sin backend, activado desde el propio Login).
+  // El rol efectivo se deriva siempre de `usuario` (login real) o de
+  // `rolDemo` (modo demo) en el mismo render — nunca depende de un segundo
+  // setState posterior, así el navigator nunca se queda sin pantallas.
+  const role = usuario ? rolBackendAUI(usuario.rol) : rolDemo;
+
   const mostrarLogin = !usuario && !demoMode && !role;
   const mostrarSeleccionRol = !role && demoMode;
+  const rolNoSoportado = Boolean(usuario) && !role;
 
   return (
     <NavigationContainer>
@@ -25,6 +30,9 @@ export default function RootNavigator() {
         {mostrarLogin && <Stack.Screen name="Login" component={LoginScreen} />}
         {mostrarSeleccionRol && (
           <Stack.Screen name="SeleccionRol" component={RoleSelectScreen} />
+        )}
+        {rolNoSoportado && (
+          <Stack.Screen name="RolNoSoportado" component={RolNoSoportadoScreen} />
         )}
         {role === ROLES.CHOFER && <Stack.Screen name="ChoferTabs" component={ChoferTabs} />}
         {role === ROLES.INSPECTOR && <Stack.Screen name="InspectorTabs" component={InspectorTabs} />}
