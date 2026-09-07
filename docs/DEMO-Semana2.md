@@ -81,9 +81,12 @@ empresa.
 4. "Enviar solicitud" → responde con el permiso creado, estado inicial
    `PENDIENTE_CONFIRMACION_MUNICIPAL`.
 
-Esto dispara, del lado del Backend, la consulta HTTP al Microservicio de
-Riesgo de Nicolas (Axios) — verificar en la consola de `servicio-riesgo` que
-llegó la petición de scoring.
+**Esto NO dispara ninguna consulta al Microservicio de Riesgo de Nicolás.**
+Se verificó leyendo el código de `joshua-backend-v2`: `axios` ni siquiera está
+en su `package.json`, y `permisoController.crear()` inserta el permiso directo
+en la base sin llamar a `RISK_SERVICE_URL` en ningún lado. El score de riesgo
+que exige el hito de Semana 2 no está integrado todavía — ver el punto 0 de
+"Reportar a Joshua" más abajo, es el hallazgo más importante de esta guía.
 
 ## 4. Geofencing + foto (opcional en la demo)
 
@@ -115,6 +118,19 @@ El mapa (MapLibre) sí funciona sin depender del Backend.
 
 ## Reportar a Joshua (bugs confirmados, no suposiciones)
 
+0. **El Backend no consulta al Microservicio de Riesgo — el hito transversal
+   de Semana 2 no está cerrado.** El módulo de Nicolás (`nicolas-riesgo`) SÍ
+   está listo: `POST /score` (risk_score/congestion_score/nivel real, con
+   `shapely`) y `GET /zonas-rojas` (clustering DBSCAN normalizado por
+   densidad), con tests y README. El problema es 100% del lado del Backend:
+   `crear()` en `permisoController.js` nunca llama a ese servicio.
+   Falta (a) agregar `axios` a `package.json`, (b) llamar a
+   `POST {RISK_SERVICE_URL}/score` con el polígono/fecha/tipo de la solicitud
+   antes o después de insertarla, y (c) guardar el resultado en el permiso
+   (o en `evaluacion_riesgo`, que ya existe como tabla). Sin esto, el plan de
+   proyecto literalmente no se cumple ("una solicitud creada desde la app
+   llega al Backend, que consulta al Microservicio de Riesgo y recibe un
+   score real, no mockeado" — criterio de éxito del Hito Semana 2).
 1. **Falta `app.use(cors())` en `backend/src/app.js`.** El paquete `cors` está
    en `package.json` pero nunca se usa. Sin esto, **ningún navegador puede
    hablarle al Backend** (el dashboard entero queda bloqueado) — por `curl`
@@ -138,8 +154,12 @@ El mapa (MapLibre) sí funciona sin depender del Backend.
 
 ## Pendientes para que la demo sea 100% en vivo
 
+- **Integrar el Backend con `POST /score` de `servicio-riesgo`** (punto 0 de
+  arriba) — es el requisito más importante, literalmente el hito de Semana 2.
 - Mergear `joshua-backend-v2` → `develop` (o al menos aplicarle el fix de
   CORS del punto 1 de arriba, si no hay tiempo de mergear todo).
+- Mergear `nicolas-riesgo` → `develop` — su trabajo de Semana 2 ya está listo
+  y esperando.
 - `GET /api/permisos` (listado) — lo necesita el dashboard del Operador.
 - Un endpoint o mecanismo que mueva el permiso de
   `PENDIENTE_CONFIRMACION_MUNICIPAL` a `APROBADO` (evaluación automática por
