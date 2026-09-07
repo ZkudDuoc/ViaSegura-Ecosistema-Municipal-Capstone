@@ -24,6 +24,41 @@ function Field({ label, ...inputProps }) {
   );
 }
 
+const TIPOS_ACTIVIDAD = [
+  { value: "PROGRAMADA", label: "Programada" },
+  { value: "EMERGENCIA", label: "Emergencia" },
+];
+
+function TipoActividadField({ value, onChange }) {
+  return (
+    <View style={styles.field}>
+      <Text style={styles.fieldLabel}>Tipo de actividad</Text>
+      <View style={styles.chipRow}>
+        {TIPOS_ACTIVIDAD.map((opcion) => (
+          <Pressable
+            key={opcion.value}
+            style={[styles.chip, value === opcion.value && styles.chipActive]}
+            onPress={() => onChange(opcion.value)}
+          >
+            <Text style={[styles.chipText, value === opcion.value && styles.chipTextActive]}>
+              {opcion.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// El Backend no cierra el anillo del polígono: hay que repetir el primer
+// punto al final antes de enviarlo (confirmado probando POST /api/permisos
+// contra la base real — geometry contains non-closed rings si no se hace).
+function cerrarPoligono(area) {
+  if (area.length < 3) return area;
+  const [primerPunto] = area;
+  return [...area, primerPunto];
+}
+
 function DateField({ label, value, onChange }) {
   const [showPicker, setShowPicker] = useState(false);
 
@@ -73,9 +108,9 @@ export default function SolicitudScreen({ navigation }) {
     try {
       const permiso = await crearPermiso({
         rut_ejecutor: rutEjecutor,
-        comuna_id: Number(comunaId),
+        comuna_id: comunaId,
         tipo_actividad: tipoActividad,
-        area,
+        area: cerrarPoligono(area),
         ventana_inicio: ventanaInicio.toISOString(),
         ventana_fin: ventanaFin.toISOString(),
         altura_estimada_m: alturaEstimada ? Number(alturaEstimada) : undefined,
@@ -104,18 +139,13 @@ export default function SolicitudScreen({ navigation }) {
         onChangeText={setRutEjecutor}
       />
       <Field
-        label="Comuna (ID)"
-        placeholder="Ej: 1"
+        label="Comuna (UUID)"
+        placeholder="UUID de la comuna (no hay selector todavía)"
         value={comunaId}
         onChangeText={setComunaId}
-        keyboardType="numeric"
+        autoCapitalize="none"
       />
-      <Field
-        label="Tipo de actividad"
-        placeholder="Ej: Transporte de carga general"
-        value={tipoActividad}
-        onChangeText={setTipoActividad}
-      />
+      <TipoActividadField value={tipoActividad} onChange={setTipoActividad} />
       <Field
         label="Altura estimada del vehículo (m)"
         placeholder="Ej: 4.2"
@@ -173,6 +203,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
   },
+  chipRow: { flexDirection: "row", gap: 10 },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.surface,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { color: colors.textMuted, fontWeight: "600", fontSize: 13 },
+  chipTextActive: { color: colors.surface },
   dateValue: { color: colors.text, fontSize: 14 },
   datePlaceholder: { color: colors.textMuted, fontSize: 14 },
   errorText: { color: colors.danger, marginBottom: 12, fontSize: 13 },

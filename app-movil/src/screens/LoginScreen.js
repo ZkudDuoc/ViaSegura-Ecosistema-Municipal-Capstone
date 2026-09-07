@@ -12,10 +12,19 @@ import { useAuth } from "../context/AuthContext";
 import { useRole, ROLES } from "../context/RoleContext";
 import { colors } from "../theme";
 
+// Valores reales del enum rol_usuario en la base (verificado contra la BD,
+// no coinciden con lo que se asumió al principio: no existe "INSPECTOR" ni
+// "OPERADOR" sueltos). CHOFER/LOGISTICA requieren empresa_id; los roles
+// _MUNICIPAL requieren comuna_id (constraint usuario_rol_scope).
+const ROLES_REGISTRO = [
+  { value: "CHOFER", label: "Chofer / Logística", ui: ROLES.CHOFER, scope: "empresa" },
+  { value: "INSPECTOR_MUNICIPAL", label: "Inspector", ui: ROLES.INSPECTOR, scope: "comuna" },
+];
+
 const ROL_BACKEND_A_UI = {
   CHOFER: ROLES.CHOFER,
   LOGISTICA: ROLES.CHOFER,
-  INSPECTOR: ROLES.INSPECTOR,
+  INSPECTOR_MUNICIPAL: ROLES.INSPECTOR,
 };
 
 export default function LoginScreen() {
@@ -27,7 +36,11 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [nombre, setNombre] = useState("");
   const [rut, setRut] = useState("");
-  const [rol, setRol] = useState("CHOFER");
+  const [rol, setRol] = useState(ROLES_REGISTRO[0].value);
+  const [empresaId, setEmpresaId] = useState("");
+  const [comunaId, setComunaId] = useState("");
+
+  const scopeActivo = ROLES_REGISTRO.find((r) => r.value === rol)?.scope;
 
   const aplicarRolUI = (usuario) => {
     const rolUI = ROL_BACKEND_A_UI[usuario.rol];
@@ -43,7 +56,15 @@ export default function LoginScreen() {
         const data = await login(email, password);
         aplicarRolUI(data.usuario);
       } else {
-        const data = await registrar({ rol, nombre, rut, email, password });
+        const data = await registrar({
+          rol,
+          nombre,
+          rut,
+          email,
+          password,
+          empresa_id: scopeActivo === "empresa" ? empresaId : undefined,
+          comuna_id: scopeActivo === "comuna" ? comunaId : undefined,
+        });
         aplicarRolUI(data.usuario);
       }
     } catch (err) {
@@ -65,19 +86,38 @@ export default function LoginScreen() {
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Rol</Text>
             <View style={styles.rolOptions}>
-              {["CHOFER", "INSPECTOR"].map((opcion) => (
+              {ROLES_REGISTRO.map((opcion) => (
                 <Pressable
-                  key={opcion}
-                  style={[styles.rolChip, rol === opcion && styles.rolChipActive]}
-                  onPress={() => setRol(opcion)}
+                  key={opcion.value}
+                  style={[styles.rolChip, rol === opcion.value && styles.rolChipActive]}
+                  onPress={() => setRol(opcion.value)}
                 >
-                  <Text style={[styles.rolChipText, rol === opcion && styles.rolChipTextActive]}>
-                    {opcion}
+                  <Text
+                    style={[styles.rolChipText, rol === opcion.value && styles.rolChipTextActive]}
+                  >
+                    {opcion.label}
                   </Text>
                 </Pressable>
               ))}
             </View>
           </View>
+
+          {scopeActivo === "empresa" && (
+            <Field
+              label="ID de empresa (UUID)"
+              value={empresaId}
+              onChangeText={setEmpresaId}
+              autoCapitalize="none"
+            />
+          )}
+          {scopeActivo === "comuna" && (
+            <Field
+              label="ID de comuna (UUID)"
+              value={comunaId}
+              onChangeText={setComunaId}
+              autoCapitalize="none"
+            />
+          )}
         </>
       )}
 

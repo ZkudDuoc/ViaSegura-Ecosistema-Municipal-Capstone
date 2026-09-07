@@ -1,7 +1,10 @@
 import api from "./api";
 
-// `area` es un arreglo de puntos [lng, lat] que forman el polígono (sin
-// repetir el primer punto al final — lo cierra el propio Backend/PostGIS).
+// `area` es un arreglo de puntos [lng, lat] que forman el polígono. El
+// Backend NO cierra el anillo solo (verificado contra la base real): quien
+// llama debe repetir el primer punto al final (ver cerrarPoligono en
+// SolicitudScreen.js). `comuna_id` y `empresa_ejecutora_id` son UUID, no
+// enteros. `tipo_actividad` es el enum "PROGRAMADA" | "EMERGENCIA".
 export function crearPermiso({
   rut_ejecutor,
   comuna_id,
