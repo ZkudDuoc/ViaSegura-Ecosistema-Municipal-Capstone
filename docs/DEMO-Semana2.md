@@ -28,11 +28,12 @@ cd dashboard
 npm run dev                              # http://localhost:5173
 ```
 
-App móvil (development build, no Expo Go — ver `app-movil/README.md`):
+App móvil (Expo Go normal — el mapa es un WebView con MapLibre GL JS, no
+requiere development build):
 
 ```bash
 cd app-movil
-npx expo run:android      # o run:ios
+npm start                 # escanear el QR con Expo Go
 ```
 
 Antes de correr la app, editar `app-movil/src/config.js` y

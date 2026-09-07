@@ -1,52 +1,45 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
-import MapView, { Marker, Polygon } from "react-native-maps";
+import { WebView } from "react-native-webview";
 import { colors } from "../theme";
+import { buildPolygonMapHtml } from "./polygonMapHtml";
 
-const SANTIAGO_REGION = {
-  latitude: -33.4489,
-  longitude: -70.6693,
-  latitudeDelta: 0.15,
-  longitudeDelta: 0.15,
-};
+const HTML = buildPolygonMapHtml();
 
 // Devuelve los puntos como [lng, lat] (formato GeoJSON) vía onChange.
 export default function PolygonMapPicker({ onChange }) {
+  const webviewRef = useRef(null);
   const [points, setPoints] = useState([]);
 
-  const addPoint = (event) => {
-    const { latitude, longitude } = event.nativeEvent.coordinate;
-    const next = [...points, { latitude, longitude }];
-    setPoints(next);
-    onChange(next.map((p) => [p.longitude, p.latitude]));
+  const handleMessage = (event) => {
+    try {
+      const next = JSON.parse(event.nativeEvent.data);
+      setPoints(next);
+      onChange(next);
+    } catch (err) {
+      // ignora mensajes que no vengan del script del mapa
+    }
   };
 
   const undoLastPoint = () => {
-    const next = points.slice(0, -1);
-    setPoints(next);
-    onChange(next.map((p) => [p.longitude, p.latitude]));
+    webviewRef.current?.injectJavaScript("window.undoPoint && window.undoPoint(); true;");
   };
 
   const reset = () => {
-    setPoints([]);
-    onChange([]);
+    webviewRef.current?.injectJavaScript("window.resetPoints && window.resetPoints(); true;");
   };
 
   return (
     <View style={styles.container}>
-      <MapView style={styles.map} initialRegion={SANTIAGO_REGION} onPress={addPoint}>
-        {points.map((point, index) => (
-          <Marker key={index} coordinate={point} />
-        ))}
-        {points.length >= 3 && (
-          <Polygon
-            coordinates={points}
-            fillColor="rgba(11, 95, 255, 0.25)"
-            strokeColor={colors.primary}
-            strokeWidth={2}
-          />
-        )}
-      </MapView>
+      <WebView
+        ref={webviewRef}
+        style={styles.map}
+        originWhitelist={["*"]}
+        source={{ html: HTML }}
+        onMessage={handleMessage}
+        javaScriptEnabled
+        domStorageEnabled
+      />
 
       <View style={styles.footer}>
         <Text style={styles.hint}>
