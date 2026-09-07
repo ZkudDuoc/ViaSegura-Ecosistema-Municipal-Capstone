@@ -5,6 +5,16 @@
   margin-bottom: 20px;
 }
 
+.pending-banner {
+  background: #fff8e6;
+  border: 1px solid var(--color-warning);
+  color: var(--color-text);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 13px;
+  margin-top: 20px;
+}
+
 .solicitudes-table {
   width: 100%;
   border-collapse: collapse;

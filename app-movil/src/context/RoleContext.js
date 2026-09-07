@@ -9,9 +9,11 @@ const RoleContext = createContext(null);
 
 export function RoleProvider({ children }) {
   const [role, setRole] = useState(null);
+  // Permite previsualizar la UI por rol sin pasar por login (sin backend real).
+  const [demoMode, setDemoMode] = useState(false);
 
   return (
-    <RoleContext.Provider value={{ role, setRole }}>
+    <RoleContext.Provider value={{ role, setRole, demoMode, setDemoMode }}>
       {children}
     </RoleContext.Provider>
   );
