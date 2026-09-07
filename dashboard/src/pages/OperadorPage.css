@@ -15,6 +15,16 @@
   margin-top: 20px;
 }
 
+.error-banner {
+  background: #fdeceb;
+  border-color: var(--color-danger);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .solicitudes-table {
   width: 100%;
   border-collapse: collapse;

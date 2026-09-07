@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import MapView from "../components/MapView";
-import { listarPendientes } from "../services/permisoService";
+import { listarPendientes, aprobarPermiso } from "../services/permisoService";
+import { getApiErrorMessage } from "../services/api";
 import "./OperadorPage.css";
 
 const RIESGO_CLASS = { Bajo: "riesgo-bajo", Medio: "riesgo-medio", Alto: "riesgo-alto" };
@@ -8,20 +9,29 @@ const RIESGO_CLASS = { Bajo: "riesgo-bajo", Medio: "riesgo-medio", Alto: "riesgo
 export default function OperadorPage() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [backendPendiente, setBackendPendiente] = useState(false);
+  const [procesandoId, setProcesandoId] = useState(null);
+  const [error, setError] = useState(null);
+
+  const cargar = () => listarPendientes().then(setSolicitudes);
 
   useEffect(() => {
-    listarPendientes()
-      .then((data) => setSolicitudes(data))
-      .catch((err) => {
-        // El Backend (Joshua) todavía no implementa GET /api/permisos —
-        // se documenta como pendiente en vez de romper el panel.
-        if ([404, 501].includes(err?.response?.status) || !err?.response) {
-          setBackendPendiente(true);
-        }
-      })
+    cargar()
+      .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleAprobar = async (id) => {
+    setError(null);
+    setProcesandoId(id);
+    try {
+      await aprobarPermiso(id);
+      await cargar();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setProcesandoId(null);
+    }
+  };
 
   return (
     <div>
@@ -33,16 +43,9 @@ export default function OperadorPage() {
       <MapView height={360} />
 
       {loading && <p className="page-subtitle">Cargando solicitudes…</p>}
+      {error && <p className="pending-banner error-banner">{error}</p>}
 
-      {!loading && backendPendiente && (
-        <p className="pending-banner">
-          Pendiente: el Backend aún no expone <code>GET /api/permisos</code>. Esta tabla se
-          poblará automáticamente apenas Joshua lo implemente — no requiere cambios en el
-          dashboard.
-        </p>
-      )}
-
-      {!loading && !backendPendiente && (
+      {!loading && (
         <table className="solicitudes-table">
           <thead>
             <tr>
@@ -72,7 +75,17 @@ export default function OperadorPage() {
                 </td>
                 <td>{s.estado}</td>
                 <td>
-                  <button className="btn-secondary">Revisar</button>
+                  {s.estado === "PENDIENTE_CONFIRMACION_MUNICIPAL" ? (
+                    <button
+                      className="btn-secondary"
+                      onClick={() => handleAprobar(s.id)}
+                      disabled={procesandoId === s.id}
+                    >
+                      {procesandoId === s.id ? "Aprobando…" : "Aprobar"}
+                    </button>
+                  ) : (
+                    <span className="page-subtitle">—</span>
+                  )}
                 </td>
               </tr>
             ))}
