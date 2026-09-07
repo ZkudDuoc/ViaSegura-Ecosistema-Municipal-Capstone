@@ -12,10 +12,29 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0B5FFF"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "REEMPLAZAR_CON_API_KEY_DE_GOOGLE_MAPS"
+        }
       }
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "VíaSegura usa la cámara para la foto de evidencia del geofencing."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "VíaSegura usa tu ubicación para el geofencing y el botón de pánico."
+        }
+      ]
+    ]
   }
 }
