@@ -12,7 +12,9 @@ import {
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "../../theme";
 import PolygonMapPicker from "../../components/PolygonMapPicker";
+import CatalogPicker from "../../components/CatalogPicker";
 import { crearPermiso } from "../../services/permisoService";
+import { listarComunas } from "../../services/catalogService";
 import { getApiErrorMessage } from "../../services/api";
 
 function Field({ label, ...inputProps }) {
@@ -138,13 +140,7 @@ export default function SolicitudScreen({ navigation }) {
         value={rutEjecutor}
         onChangeText={setRutEjecutor}
       />
-      <Field
-        label="Comuna (UUID)"
-        placeholder="UUID de la comuna (no hay selector todavía)"
-        value={comunaId}
-        onChangeText={setComunaId}
-        autoCapitalize="none"
-      />
+      <CatalogPicker label="Comuna" fetcher={listarComunas} value={comunaId} onChange={setComunaId} />
       <TipoActividadField value={tipoActividad} onChange={setTipoActividad} />
       <Field
         label="Altura estimada del vehículo (m)"
@@ -161,6 +157,7 @@ export default function SolicitudScreen({ navigation }) {
         <>
           <Text style={styles.successText}>
             Solicitud creada · estado: {resultado.estado ?? "enviada"}
+            {resultado.riesgo?.nivel ? ` · riesgo: ${resultado.riesgo.nivel}` : ""}
           </Text>
           <Pressable
             style={styles.secondaryButton}

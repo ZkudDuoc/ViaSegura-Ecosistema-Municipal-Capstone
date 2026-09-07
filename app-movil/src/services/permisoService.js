@@ -36,3 +36,10 @@ export function activarPermiso(permisoId, foto_evidencia_url) {
     .patch(`/permisos/${permisoId}/activar`, { foto_evidencia_url })
     .then((res) => res.data);
 }
+
+// El Backend filtra automáticamente por el usuario autenticado (chofer ve
+// las suyas, roles municipales ven las de su comuna) — no hace falta pasar
+// ningún filtro desde el cliente.
+export function listarPermisos() {
+  return api.get("/permisos").then((res) => res.data);
+}

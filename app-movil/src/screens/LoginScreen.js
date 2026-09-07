@@ -11,6 +11,8 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useRole, ROLES } from "../context/RoleContext";
 import { colors } from "../theme";
+import CatalogPicker from "../components/CatalogPicker";
+import { listarComunas, listarEmpresas } from "../services/catalogService";
 
 // Valores reales del enum rol_usuario en la base (verificado contra la BD,
 // no coinciden con lo que se asumió al principio: no existe "INSPECTOR" ni
@@ -103,19 +105,19 @@ export default function LoginScreen() {
           </View>
 
           {scopeActivo === "empresa" && (
-            <Field
-              label="ID de empresa (UUID)"
+            <CatalogPicker
+              label="Empresa"
+              fetcher={listarEmpresas}
               value={empresaId}
-              onChangeText={setEmpresaId}
-              autoCapitalize="none"
+              onChange={setEmpresaId}
             />
           )}
           {scopeActivo === "comuna" && (
-            <Field
-              label="ID de comuna (UUID)"
+            <CatalogPicker
+              label="Comuna"
+              fetcher={listarComunas}
               value={comunaId}
-              onChangeText={setComunaId}
-              autoCapitalize="none"
+              onChange={setComunaId}
             />
           )}
         </>
