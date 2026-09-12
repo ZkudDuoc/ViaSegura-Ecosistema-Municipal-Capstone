@@ -21,7 +21,14 @@ import pandas as pd
 from shapely.geometry import MultiPoint, mapping
 from sklearn.cluster import DBSCAN
 
-EPS_KM = 0.35
+# Calibrado con scripts/calibrar_parametros.py, barriendo eps/min_samples
+# sobre los 594 incidentes reales. EPS_KM=0.35 (valor original de Semana 2)
+# dejaba el 68% de los incidentes como "ruido" sin cluster (193/594
+# agrupados) — demasiado estricto para que /zonas-rojas sea representativo
+# del histórico. EPS_KM=0.75 colapsa todo en un único cluster gigante (sin
+# poder distinguir zonas). EPS_KM=0.5 agrupa el 86% de los incidentes
+# (513/594) en 27 clusters de tamaño razonable (~19 incidentes c/u).
+EPS_KM = 0.5
 MIN_SAMPLES = 5
 EARTH_RADIUS_KM = 6371.0088
 DENSIDAD_SUAVIZADO = 0.1  # evita división por ~0 en manzanas casi vacías
