@@ -16,6 +16,20 @@
     },
     "web": {
       "bundler": "metro"
-    }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "VíaSegura usa la cámara para la foto de evidencia del geofencing."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "VíaSegura usa tu ubicación para el geofencing y el botón de pánico."
+        }
+      ]
+    ]
   }
 }

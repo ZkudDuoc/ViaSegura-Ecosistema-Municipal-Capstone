@@ -1,7 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import HomeScreen from "../screens/chofer/HomeScreen";
-import SolicitudScreen from "../screens/chofer/SolicitudScreen";
+import SolicitudStack from "./SolicitudStack";
 import PanicoScreen from "../screens/chofer/PanicoScreen";
 import { colors } from "../theme";
 
@@ -17,7 +17,7 @@ export default function ChoferTabs() {
       }}
     >
       <Tab.Screen name="Mis solicitudes" component={HomeScreen} />
-      <Tab.Screen name="Nueva solicitud" component={SolicitudScreen} />
+      <Tab.Screen name="Nueva solicitud" component={SolicitudStack} />
       <Tab.Screen name="Pánico" component={PanicoScreen} />
     </Tab.Navigator>
   );

@@ -1,44 +1,78 @@
-import React from "react";
-import { View, Text, StyleSheet, FlatList } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl } from "react-native";
 import { colors } from "../../theme";
+import { listarPermisos } from "../../services/permisoService";
+import { getApiErrorMessage } from "../../services/api";
 
-const SOLICITUDES_MOCK = [
-  { id: "SOL-1042", estado: "En evaluación", comuna: "Santiago" },
-  { id: "SOL-1041", estado: "Aprobada", comuna: "Providencia" },
-  { id: "SOL-1039", estado: "Riesgo alto", comuna: "Renca" },
-];
+const ESTADO_COLOR = {
+  PENDIENTE_CONFIRMACION_MUNICIPAL: colors.warning,
+  APROBADO: colors.success,
+  EN_COLA_ESPERA: colors.warning,
+  ACTIVO: colors.success,
+  ACTIVO_PENDIENTE_EVIDENCIA: colors.warning,
+  FINALIZADO: colors.textMuted,
+  EXPIRADO: colors.danger,
+  REVOCADO: colors.danger,
+};
 
 function EstadoBadge({ estado }) {
-  const palette = {
-    "En evaluación": colors.warning,
-    Aprobada: colors.success,
-    "Riesgo alto": colors.danger,
-  };
   return (
-    <View style={[styles.badge, { backgroundColor: palette[estado] ?? colors.textMuted }]}>
+    <View style={[styles.badge, { backgroundColor: ESTADO_COLOR[estado] ?? colors.textMuted }]}>
       <Text style={styles.badgeText}>{estado}</Text>
     </View>
   );
 }
 
 export default function HomeScreen() {
+  const [solicitudes, setSolicitudes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const cargar = useCallback(() => {
+    setError(null);
+    return listarPermisos()
+      .then(setSolicitudes)
+      .catch((err) => setError(getApiErrorMessage(err)));
+  }, []);
+
+  useEffect(() => {
+    cargar().finally(() => setLoading(false));
+  }, [cargar]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    cargar().finally(() => setRefreshing(false));
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Mis solicitudes</Text>
-      <FlatList
-        data={SOLICITUDES_MOCK}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <View style={styles.item}>
-            <View>
-              <Text style={styles.itemId}>{item.id}</Text>
-              <Text style={styles.itemComuna}>{item.comuna}</Text>
+
+      {loading && <ActivityIndicator color={colors.primary} style={styles.loading} />}
+      {error && <Text style={styles.errorText}>{error}</Text>}
+
+      {!loading && !error && (
+        <FlatList
+          data={solicitudes}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          ListEmptyComponent={<Text style={styles.emptyText}>Todavía no creaste ninguna solicitud</Text>}
+          renderItem={({ item }) => (
+            <View style={styles.item}>
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemId}>{item.rut_ejecutor}</Text>
+                <Text style={styles.itemComuna}>
+                  {item.tipo_actividad}
+                  {item.riesgo ? ` · riesgo ${item.riesgo}` : ""}
+                </Text>
+              </View>
+              <EstadoBadge estado={item.estado} />
             </View>
-            <EstadoBadge estado={item.estado} />
-          </View>
-        )}
-      />
+          )}
+        />
+      )}
     </View>
   );
 }
@@ -52,6 +86,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 12,
   },
+  loading: { marginTop: 24 },
+  errorText: { color: colors.danger, paddingHorizontal: 20, fontSize: 13 },
+  emptyText: { color: colors.textMuted, paddingHorizontal: 20, fontSize: 13 },
   list: { paddingHorizontal: 20, paddingBottom: 24 },
   item: {
     backgroundColor: colors.surface,
@@ -64,8 +101,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  itemInfo: { flex: 1, marginRight: 12 },
   itemId: { fontSize: 16, fontWeight: "600", color: colors.text },
   itemComuna: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
-  badgeText: { color: colors.surface, fontSize: 12, fontWeight: "600" },
+  badgeText: { color: colors.surface, fontSize: 11, fontWeight: "600" },
 });
