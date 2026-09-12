@@ -50,13 +50,16 @@ curl -X POST http://localhost:8000/score \
       "coordinates": [[[-70.665, -33.465], [-70.650, -33.465], [-70.650, -33.450], [-70.665, -33.450], [-70.665, -33.465]]]
     },
     "fecha": "2025-05-15",
-    "tipo_actividad": "carga_general"
+    "tipo_actividad": "PROGRAMADA"
   }'
 ```
 
 ```json
-{"risk_score":91.79,"congestion_score":4.04,"nivel":"alto","n_incidentes_considerados":10,"tipo_actividad":"carga_general"}
+{"risk_score":99.75,"congestion_score":4.04,"nivel":"alto","n_incidentes_considerados":10,"buffer_aplicado_m":0.0,"tipo_actividad":"PROGRAMADA"}
 ```
+
+`tipo_actividad` acepta exactamente los dos valores del enum real del
+Backend: `"PROGRAMADA"` o `"EMERGENCIA"`.
 
 ### Ejemplo — `GET /zonas-rojas`
 
@@ -69,37 +72,47 @@ donde cada zona trae `centroide`, `contorno_geojson` (para pintarla en el
 mapa) e `indice_riesgo_normalizado` (conteo de incidentes del cluster ya
 dividido por su densidad poblacional normalizada).
 
-> Nota de calibración: la ventana temporal (`VENTANA_DIAS`), el `RISK_TAU`
-> del score, los umbrales de nivel y los parámetros de DBSCAN (`EPS_KM`,
-> `MIN_SAMPLES`) son valores de partida razonables — el plan reserva su
-> ajuste fino para la calibración de Semana 3.
+## Semana 3 — Calibración (Feature Freeze)
 
-### ⚠️ Pendiente de calibración: polígonos chicos de solicitudes reales
+Sin endpoints nuevos: solo se ajustan parámetros y se corrigen los
+problemas encontrados en Semana 2, con evidencia en vez de "a ojo" (ver
+`scripts/calibrar_parametros.py`, que corre ~1500 solicitudes simuladas
+de tamaño realista sobre el dataset real).
 
-`POST /score` filtra incidentes con `within(poligono)` (estrictamente
-dentro) y manzanas censales con `intersects(poligono)` (que lo toquen) —
-sin ningún buffer extra. Esto funciona bien con los polígonos grandes
-usados en las pruebas (~1-2 km de lado), pero una solicitud real de
-permiso puede ser mucho más chica: ej. un cuadrado de ~20m para reparar
-un poste.
+**1. Buffer mínimo para polígonos chicos.** Una solicitud real (ej. ~20m
+para reparar un poste) casi nunca tocaba ningún incidente ni manzana
+censal con el filtro estricto de Semana 2, aunque estuviera en plena zona
+de riesgo (`risk_score: 0.0` en un punto que con un polígono de ~2km daba
+`98.17`). Ahora, si el polígono recibido es más chico que
+`AREA_MINIMA_M2` (150×150m), `scoring.py` lo expande con
+`BUFFER_MINIMO_M` (75m) antes de filtrar — tanto para riesgo como para
+congestión. La respuesta de `/score` ahora informa `buffer_aplicado_m`
+(0 si no se aplicó ninguno) para que quede trazable.
 
-Probado con un polígono de 20m ubicado en el centro exacto de una zona
-que con un polígono de ~2 km da `risk_score: 98.17` (nivel alto):
+**2. Recalibración de constantes**, corriendo 1500 solicitudes de 15-300m
+de lado sobre el dataset real:
 
-```
-poligono 20m -> {"risk_score": 0.0, "congestion_score": 0.0, "nivel": "bajo", "n_incidentes_considerados": 0}
-```
+| Parámetro | Semana 2 | Semana 3 | Por qué |
+|---|---|---|---|
+| `RISK_TAU` (scoring.py) | 6.0 | **2.5** | Con 6.0, el nivel "alto" era prácticamente inalcanzable para una solicitud de tamaño real (0 casos en 1500 simuladas) — la suma ponderada de incidentes cercanos a un polígono chico casi siempre cae entre 1 y 5. Con 2.5: 1 incidente leve ≈ bajo, 2 ≈ medio, 3+ (o un solo incidente "alta") ≈ alto. |
+| `EPS_KM` (clustering.py) | 0.35 | **0.5** | Con 0.35 solo se agrupaba el 32% de los incidentes (193/594), dejando la mayoría como "ruido" sin cluster. Con 0.5 se agrupa el 86% (513/594) en 27 clusters de tamaño razonable, sin colapsar en uno solo (eso pasa recién en 0.75). |
+| `VENTANA_DIAS` | 45 | 45 (sin cambio) | Probado contra 15/30/60/90 días; 45 da una proporción razonable de solicitudes con algún incidente cercano (7%) sin diluir demasiado el patrón estacional. |
+| `NIVEL_UMBRAL_BAJO_MEDIO` / `MEDIO_ALTO` | 34 / 67 | 34 / 67 (sin cambio) | Ya funcionan bien combinados con el nuevo `RISK_TAU`. |
+| `MIN_SAMPLES` (clustering.py) | 5 | 5 (sin cambio) | — |
 
-El polígono chico no toca ningún incidente ni ninguna manzana censal
-completa, aunque esté en plena zona de alto riesgo — el score da 0 por
-falta de resolución espacial, no porque la zona sea segura.
+Escenarios de prueba explícitos por nivel en `tests/test_escenarios.py`
+(1 incidente → bajo, 2 → medio, 3 → alto).
 
-**Opciones a evaluar en la calibración de Semana 3:**
-- Aplicar un buffer mínimo (ej. 50-100m) alrededor del polígono recibido
-  antes de filtrar incidentes/manzanas, para solicitudes puntuales.
-- Reemplazar el filtro estricto por distancia al incidente/manzana más
-  cercano cuando el polígono sea menor a un área mínima.
-- Definir con Joshua/Agustin qué tan chico puede llegar a ser un
-  polígono real desde la app, para dimensionar el buffer correctamente.
+**3. `tipo_actividad`: se valida, no se pondera.** El campo ahora se
+valida contra el enum real del Backend (`PROGRAMADA` / `EMERGENCIA`, no
+texto libre) — pero **no se usa para ponderar el score a propósito**: no
+existe ninguna razón física para que el tipo de permiso cambie el riesgo
+real de la zona (el riesgo de la calle no depende de si el permiso se
+pidió con anticipación o es una emergencia), y no hay datos que
+respalden una correlación tipo-de-actividad ↔ tipo-de-incidente.
+Inventar un multiplicador ahí habría sido una regla de negocio ficticia.
+El campo ya se usa correctamente aguas abajo, en el Backend, para
+priorizar la cola de permisos (`ORDER BY tipo_actividad = 'EMERGENCIA'
+DESC` en `002_logica.sql`).
 
 Rama de trabajo: `nicolas-riesgo`.

@@ -16,11 +16,12 @@ class GeoJSONPolygon(BaseModel):
 class ScoreRequest(BaseModel):
     poligono: GeoJSONPolygon
     fecha: date = Field(description="Fecha de la actividad solicitada")
-    tipo_actividad: str = Field(
+    tipo_actividad: Literal["PROGRAMADA", "EMERGENCIA"] = Field(
         description=(
-            "Tipo de actividad de la solicitud de permiso. No se usa aún "
-            "para ponderar el score (pendiente de calibración en Semana 3); "
-            "se recibe y se refleja en la respuesta para trazabilidad."
+            "Mismo enum tipo_actividad del esquema del Backend (Módulo 2). "
+            "No pondera el score: el tipo de permiso no cambia el riesgo "
+            "físico real de la zona (ver services/scoring.py); se recibe y "
+            "se refleja en la respuesta solo para trazabilidad."
         )
     )
 
@@ -30,6 +31,11 @@ class ScoreResponse(BaseModel):
     congestion_score: float = Field(ge=0, le=100)
     nivel: Literal["bajo", "medio", "alto"]
     n_incidentes_considerados: int
+    buffer_aplicado_m: float = Field(
+        description="Buffer en metros aplicado al polígono recibido si era "
+        "más chico que el área mínima de resolución del dataset (0 si no "
+        "se aplicó ninguno)."
+    )
     tipo_actividad: str
 
 
