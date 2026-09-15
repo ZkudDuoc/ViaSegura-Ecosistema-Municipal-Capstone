@@ -4,6 +4,7 @@ const authRoutes = require('./routes/authRoutes');
 const permisoRoutes = require('./routes/permisoRoutes');
 const comunaRoutes = require('./routes/comunaRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
+const panicoRoutes = require('./routes/panicoRoutes');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/permisos', permisoRoutes);
 app.use('/api/comunas', comunaRoutes);
 app.use('/api/empresas', empresaRoutes);
+app.use('/api/panico', panicoRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Recurso no encontrado' });
