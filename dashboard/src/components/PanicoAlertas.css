@@ -1,0 +1,22 @@
+.panico-alertas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.panico-alerta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fdeceb;
+  border: 1px solid var(--color-danger);
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.panico-alerta-detalle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
