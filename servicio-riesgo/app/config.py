@@ -14,3 +14,7 @@ INE_CENSUS_DATA_PATH = SERVICE_ROOT / os.getenv(
     "INE_CENSUS_DATA_PATH", "./data/ine_manzanas.csv"
 )
 PORT = int(os.getenv("PORT", "8000"))
+
+# Margen (metros) que se expande el polígono recibido antes de buscar
+# incidentes/manzanas — ver scoring.py. 0 lo desactiva.
+BUFFER_BUSQUEDA_M = float(os.getenv("BUFFER_BUSQUEDA_M", "75"))
