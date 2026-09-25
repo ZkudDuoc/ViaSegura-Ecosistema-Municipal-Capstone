@@ -1,4 +1,4 @@
-"""Score de riesgo espacio-temporal (Semana 2, calibrado en Semana 3).
+"""Score de riesgo espacio-temporal (Semana 2, calibrado en Semanas 3 y 4).
 
 Cruza el polígono de una solicitud contra los incidentes históricos
 dentro de esa zona y ventana de tiempo, y contra la densidad poblacional
@@ -16,8 +16,10 @@ import math
 from datetime import date
 
 import geopandas as gpd
+from shapely.affinity import scale
 from shapely.geometry.base import BaseGeometry
 
+from app import config
 from app.data.censo import METROS_POR_GRADO_LAT, METROS_POR_GRADO_LON
 
 GRAVEDAD_PESOS = {"baja": 1, "media": 2, "alta": 3}
@@ -36,17 +38,21 @@ RISK_TAU = 2.5
 NIVEL_UMBRAL_BAJO_MEDIO = 34
 NIVEL_UMBRAL_MEDIO_ALTO = 67
 
-# Una solicitud real de permiso puede ser un polígono muy chico (ej. ~20m
-# para reparar un poste). Con el filtro espacial estricto (within/
-# intersects) eso casi nunca encuentra incidentes ni manzanas censales,
-# aunque esté en plena zona de riesgo, porque el área es demasiado chica
-# para la resolución del dataset (594 incidentes en ~11x9 km). Por eso,
-# si el polígono recibido es más chico que AREA_MINIMA_M2, se expande con
-# un buffer de BUFFER_MINIMO_M metros antes de filtrar — tanto para el
-# riesgo como para la congestión, así ambos números reflejan la misma
-# zona efectiva.
-AREA_MINIMA_M2 = 150 * 150
-BUFFER_MINIMO_M = 75
+# Margen de búsqueda alrededor del polígono recibido (Semana 4). Desde que
+# el frontend calcula el polígono solo (ruta del camión + ~5.5 m a cada
+# lado, ver Anexo A del plan), llegan polígonos angostos: 11 m de ancho por
+# el largo del tramo. Con el filtro estricto (within/intersects) casi nunca
+# tocan un incidente, aunque la cuadra sea peligrosa — el dataset tiene
+# ~6 incidentes por km². Por eso el polígono se expande BUFFER_BUSQUEDA_M
+# metros antes de filtrar, tanto para riesgo como para congestión (ambos
+# números reflejan la misma zona efectiva). Semana 3 lo aplicaba solo a
+# polígonos de menos de 150x150 m; ese umbral por área era un error: una
+# ruta de 2.5 km (27 500 m²) quedaba sin margen y daba MENOS riesgo que la
+# misma ruta recortada a 2 km (ver scripts/probar_poligonos_ruta.py). Un
+# margen uniforme es monótono: si A contiene a B, buffer(A) contiene a
+# buffer(B), así que una ruta más larga nunca baja el riesgo.
+# Configurable sin tocar código: variable de entorno BUFFER_BUSQUEDA_M.
+BUFFER_BUSQUEDA_M = config.BUFFER_BUSQUEDA_M
 
 
 def _distancia_circular_dias(fecha_a: date, fecha_b: date) -> int:
@@ -59,25 +65,23 @@ def _distancia_circular_dias(fecha_a: date, fecha_b: date) -> int:
     return min(diff_days, 365 - diff_days)
 
 
-def _area_aproximada_m2(poligono: BaseGeometry) -> float:
-    """Aproxima el área del polígono en m², asumiendo que la conversión
-    grados->metros es ~constante en su extensión — válido para polígonos
-    del tamaño de una solicitud de permiso, no para polígonos que abarquen
-    toda la comuna."""
-    return poligono.area * METROS_POR_GRADO_LAT * METROS_POR_GRADO_LON
-
-
-def _aplicar_buffer_minimo(poligono: BaseGeometry) -> tuple[BaseGeometry, float]:
-    """Expande el polígono con BUFFER_MINIMO_M si es más chico que
-    AREA_MINIMA_M2. Devuelve (polígono efectivo, buffer aplicado en metros
-    — 0.0 si no se aplicó ninguno)."""
-    if _area_aproximada_m2(poligono) >= AREA_MINIMA_M2:
-        return poligono, 0.0
-
-    buffer_grados_lat = BUFFER_MINIMO_M / METROS_POR_GRADO_LAT
-    buffer_grados_lon = BUFFER_MINIMO_M / METROS_POR_GRADO_LON
-    buffer_grados = (buffer_grados_lat + buffer_grados_lon) / 2
-    return poligono.buffer(buffer_grados), float(BUFFER_MINIMO_M)
+def _expandir_poligono(poligono: BaseGeometry, buffer_m: float) -> BaseGeometry:
+    """Expande el polígono `buffer_m` metros REALES en todas las direcciones.
+    Un grado de longitud mide menos que uno de latitud (~92.8 km vs ~111.3
+    km a esta latitud), así que se pasa a metros, se aplica el buffer y se
+    vuelve a grados; buffear directo en grados dejaría el margen ~17% más
+    corto en dirección este-oeste."""
+    if buffer_m <= 0:
+        return poligono
+    en_metros = scale(
+        poligono, METROS_POR_GRADO_LON, METROS_POR_GRADO_LAT, origin=(0, 0)
+    )
+    return scale(
+        en_metros.buffer(buffer_m),
+        1 / METROS_POR_GRADO_LON,
+        1 / METROS_POR_GRADO_LAT,
+        origin=(0, 0),
+    )
 
 
 def _nivel_desde_score(risk_score: float) -> str:
@@ -94,8 +98,10 @@ def calcular_score(
     poligono: BaseGeometry,
     fecha: date,
     ventana_dias: int = VENTANA_DIAS,
+    buffer_m: float | None = None,
 ) -> dict:
-    poligono, buffer_aplicado_m = _aplicar_buffer_minimo(poligono)
+    buffer_aplicado_m = float(BUFFER_BUSQUEDA_M if buffer_m is None else buffer_m)
+    poligono = _expandir_poligono(poligono, buffer_aplicado_m)
 
     incidentes_en_zona = gdf_incidentes[gdf_incidentes.within(poligono)]
 

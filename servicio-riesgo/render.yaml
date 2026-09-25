@@ -1,0 +1,28 @@
+# Blueprint de Render para el microservicio de riesgo (Módulo 3).
+# Guía paso a paso: servicio-riesgo/DEPLOY.md
+#
+# Está dentro de servicio-riesgo/ (y no en la raíz del repo) para no chocar
+# con el render.yaml que arme el Backend: cada módulo mantiene el suyo.
+services:
+  - type: web
+    name: viasegura-riesgo
+    runtime: python
+    plan: free
+    # Rama que se despliega. Cambiar a `main` cuando se haga el merge final
+    # develop -> main de la Semana 4.
+    branch: develop
+    # El repo es un monorepo: el servicio vive en servicio-riesgo/.
+    rootDir: servicio-riesgo
+    buildCommand: pip install -r requirements.txt
+    # Render entrega el puerto en $PORT; uvicorn debe escuchar en 0.0.0.0.
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    # Render reinicia el servicio si /health deja de responder 200.
+    healthCheckPath: /health
+    envVars:
+      # Versión con wheels precompilados para todas las dependencias fijadas
+      # en requirements.txt (verificado con pip para Linux x86_64, 3.12 y 3.13).
+      - key: PYTHON_VERSION
+        value: 3.13.5
+      # Margen (metros) alrededor del polígono recibido; ver scoring.py.
+      - key: BUFFER_BUSQUEDA_M
+        value: "75"

@@ -48,9 +48,16 @@ def generar_incidentes_simulados(path: Path, n: int = 600, seed: int = 42) -> No
     path.parent.mkdir(parents=True, exist_ok=True)
     rng = np.random.default_rng(seed)
 
-    fechas = pd.to_datetime("2025-01-01") + pd.to_timedelta(
-        rng.integers(0, 240, size=n), unit="D"
-    )
+    # El dataset cubre el año completo: scoring.py compara por época del año
+    # (ventana circular), así que un dataset que terminaba en agosto dejaba
+    # sin cobertura a toda solicitud de septiembre-noviembre (0 incidentes
+    # => riesgo 0 siempre). Las fechas salen de un generador propio; el
+    # sorteo original de 240 días se descarta pero se sigue consumiendo
+    # para no alterar el resto del stream (coordenadas, tipo y gravedad de
+    # cada incidente quedan idénticos a los ya calibrados).
+    rng.integers(0, 240, size=n)
+    dias = np.random.default_rng(seed + 1).integers(0, 365, size=n)
+    fechas = pd.to_datetime("2025-01-01") + pd.to_timedelta(dias, unit="D")
 
     df = pd.DataFrame(
         {

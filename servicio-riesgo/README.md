@@ -55,7 +55,7 @@ curl -X POST http://localhost:8000/score \
 ```
 
 ```json
-{"risk_score":99.75,"congestion_score":4.04,"nivel":"alto","n_incidentes_considerados":10,"buffer_aplicado_m":0.0,"tipo_actividad":"PROGRAMADA"}
+{"risk_score":90.93,"congestion_score":6.53,"nivel":"alto","n_incidentes_considerados":3,"buffer_aplicado_m":75.0,"tipo_actividad":"PROGRAMADA"}
 ```
 
 `tipo_actividad` acepta exactamente los dos valores del enum real del
@@ -81,13 +81,10 @@ de tamaño realista sobre el dataset real).
 
 **1. Buffer mínimo para polígonos chicos.** Una solicitud real (ej. ~20m
 para reparar un poste) casi nunca tocaba ningún incidente ni manzana
-censal con el filtro estricto de Semana 2, aunque estuviera en plena zona
-de riesgo (`risk_score: 0.0` en un punto que con un polígono de ~2km daba
-`98.17`). Ahora, si el polígono recibido es más chico que
-`AREA_MINIMA_M2` (150×150m), `scoring.py` lo expande con
-`BUFFER_MINIMO_M` (75m) antes de filtrar — tanto para riesgo como para
-congestión. La respuesta de `/score` ahora informa `buffer_aplicado_m`
-(0 si no se aplicó ninguno) para que quede trazable.
+censal con el filtro estricto de Semana 2 (`risk_score: 0.0` en un punto
+que con un polígono de ~2km daba `98.17`). Semana 3 lo resolvió expandiendo
+solo los polígonos de menos de 150×150 m. **Ese criterio por área tenía un
+error y se reemplazó en la Semana 4** (ver más abajo).
 
 **2. Recalibración de constantes**, corriendo 1500 solicitudes de 15-300m
 de lado sobre el dataset real:
@@ -101,7 +98,8 @@ de lado sobre el dataset real:
 | `MIN_SAMPLES` (clustering.py) | 5 | 5 (sin cambio) | — |
 
 Escenarios de prueba explícitos por nivel en `tests/test_escenarios.py`
-(1 incidente → bajo, 2 → medio, 3 → alto).
+(bajo, medio, alto y sin riesgo; en Semana 4 pasaron a rutas de 150 m
+centradas en incidentes reales del dataset).
 
 **3. `tipo_actividad`: se valida, no se pondera.** El campo ahora se
 valida contra el enum real del Backend (`PROGRAMADA` / `EMERGENCIA`, no
@@ -114,5 +112,72 @@ Inventar un multiplicador ahí habría sido una regla de negocio ficticia.
 El campo ya se usa correctamente aguas abajo, en el Backend, para
 priorizar la cola de permisos (`ORDER BY tipo_actividad = 'EMERGENCIA'
 DESC` en `002_logica.sql`).
+
+## Semana 4 — Polígono auto-calculado, E2E y despliegue
+
+Cambio de alcance del equipo (Anexo A del plan): el polígono ya no lo
+dibuja el chofer; el frontend lo calcula al presionar "iniciar trabajo"
+(GPS del camión + ancho ~2.5 m + conos 3 m ≈ **5.5 m por lado**). El
+contrato de `/score` no cambia (mismo GeoJSON de entrada, mismos campos de
+salida), pero los polígonos ahora son **angostos (~11 m de ancho)**.
+`tests/poligonos_ruta.py` reproduce esa forma para probar sin esperar al
+frontend.
+
+**1. Bug encontrado y corregido: el buffer por área no era monótono.**
+`scripts/probar_poligonos_ruta.py` mostró que con el criterio de Semana 3
+(buffer solo si el área < 150×150 m) una ruta de 2 500 m (27 500 m²)
+quedaba **sin margen** y encontraba incidentes en el 7% de los casos,
+mientras que la de 2 000 m (con margen) llegaba al 52%. En 685 de 1 500
+pares, una ruta que *contenía* a otra dio **menos riesgo** (imposible).
+Ahora el margen es **uniforme**, en metros reales en ambos ejes
+(`BUFFER_BUSQUEDA_M`, 75 m por defecto, variable de entorno) y aplica a
+toda solicitud: si A contiene a B, buffer(A) contiene a buffer(B), así que
+una ruta más larga nunca baja el riesgo (0 violaciones en 1 500 pares,
+y hay un test que lo verifica). `buffer_aplicado_m` en la respuesta
+informa el margen usado.
+
+| Buffer | 0 m | 25 m | 50 m | **75 m** | 100 m | 150 m |
+|---|---|---|---|---|---|---|
+| Solicitudes que tocan algún incidente (de 1 500 rutas simuladas) | 6 (0.4%) | 41 | 83 | **132 (8.8%)** | 197 | 298 |
+
+Sin margen el módulo era casi ciego para polígonos angostos; 75 m equivale
+a media cuadra de zona de influencia. Es una decisión de política:
+subirlo aumenta la sensibilidad y reduce la precisión.
+
+**2. Cobertura anual del dataset simulado.** Las fechas terminaban en agosto:
+para solicitudes de octubre-noviembre (la época de la demo) el 0.0% de las
+rutas encontraba algún incidente, o sea todo daba "bajo" con score 0. Las
+fechas ahora cubren el año completo (43-56 incidentes por mes); las
+coordenadas, tipos y gravedades quedaron idénticas (los clusters no
+cambian).
+
+**3. El clustering no depende del polígono consultado (verificado).**
+DBSCAN corre una sola vez sobre todos los incidentes y no recibe ningún
+polígono; el barrido de `calibrar_parametros.py` da los mismos 27 clusters
+(`EPS_KM=0.5`, `MIN_SAMPLES=5`) y hay tests que comprueban que 30 consultas
+`/score` de rutas angostas dejan `/zonas-rojas` idéntico.
+
+**4. Recalibración con la nueva población de solicitudes** (1 500 rutas de
+10-500 m): `RISK_TAU=2.5` y los umbrales 34/67 siguen siendo los correctos
+(con 3.5 casi desaparece "alto"; con 1.5 cualquier incidente leve ya sería
+"medio"); `VENTANA_DIAS=45` se mantiene.
+
+**5. E2E y latencia.** `tests/test_e2e_iniciar_trabajo.py` simula el flujo
+completo (ruta → polígono → cuerpo idéntico al del Backend → respuesta) y
+`scripts/smoke_test.py` hace lo mismo por HTTP contra un servidor local o
+desplegado. Latencia medida: **p50 ≈ 3-14 ms, p95 ≈ 16-24 ms**. Ojo en
+Windows: `http://localhost:8000` suma ~2 s por consulta (resuelve IPv6
+primero); usar `http://127.0.0.1:8000` (importante para `RISK_SERVICE_URL`
+del Backend).
+
+**6. Despliegue y demo.** Ver [`DEPLOY.md`](DEPLOY.md) (Render, plan gratis y
+su "sleep") y [`DEMO.md`](DEMO.md) (escenarios reales bajo/medio/alto con
+coordenadas GPS y guion).
+
+```bash
+python scripts/smoke_test.py                       # local, debe dar TODO OK
+python scripts/generar_escenarios_demo.py --fecha 2026-10-15
+python scripts/probar_poligonos_ruta.py            # experimento del bug
+```
 
 Rama de trabajo: `nicolas-riesgo`.
