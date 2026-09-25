@@ -15,6 +15,7 @@ export function crearPermiso({
   empresa_ejecutora_id,
   nombre_empresa_ejecutora,
   altura_estimada_m,
+  vehiculo_id,
 }) {
   return api
     .post("/permisos", {
@@ -27,8 +28,21 @@ export function crearPermiso({
       empresa_ejecutora_id,
       nombre_empresa_ejecutora,
       altura_estimada_m,
+      vehiculo_id,
     })
     .then((res) => res.data);
+}
+
+// Estado "en operativo" del propio servicio (inicio real, duración,
+// tiempo transcurrido/restante) — para mostrarlo en la pantalla del chofer.
+export function obtenerOperativo(permisoId) {
+  return api.get(`/permisos/${permisoId}/operativo`).then((res) => res.data);
+}
+
+// Usado por el Inspector (pantalla de escaneo) para confirmar que la patente
+// del camión escaneado coincide con la declarada en el permiso.
+export function validarPatente(permisoId, patente) {
+  return api.post(`/permisos/${permisoId}/validar-patente`, { patente }).then((res) => res.data);
 }
 
 export function activarPermiso(permisoId, foto_evidencia_url) {

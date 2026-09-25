@@ -36,3 +36,19 @@ export function asignarMovil(id, identificadorMovil) {
 export function obtenerBitacora(id) {
   return api.get(`/permisos/${id}/bitacora`).then((res) => res.data);
 }
+
+// Validación patente-vs-permiso (Semana 4): confirma que la patente
+// escaneada en terreno coincide con el vehículo declarado en el permiso.
+export function validarPatente(id, patente) {
+  return api.post(`/permisos/${id}/validar-patente`, { patente }).then((res) => res.data);
+}
+
+// Servicios "en operativo" de la comuna (inicio real, duración, tiempo
+// transcurrido/restante) — alimenta la animación en vivo del mapa.
+export function listarOperativos() {
+  return api.get("/permisos/operativos").then((res) => res.data);
+}
+
+export function obtenerOperativo(id) {
+  return api.get(`/permisos/${id}/operativo`).then((res) => res.data);
+}

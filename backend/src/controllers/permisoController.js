@@ -46,6 +46,7 @@ async function crear(req, res) {
     empresa_ejecutora_id,
     nombre_empresa_ejecutora,
     altura_estimada_m,
+    vehiculo_id,
   } = req.body;
 
   if (!rut_ejecutor || !comuna_id || !tipo_actividad || !area || !ventana_inicio || !ventana_fin) {
@@ -79,7 +80,17 @@ async function crear(req, res) {
     ]
   );
 
-  const permiso = rows[0];
+  let permiso = rows[0];
+
+  // Vehículo declarado para el permiso (Semana 4: base de la validación
+  // patente-vs-permiso que hace el Supervisor/Inspector en terreno).
+  if (vehiculo_id) {
+    const { rows: vehiculoRows } = await pool.query(
+      `UPDATE permiso SET vehiculo_id = $1 WHERE id = $2 RETURNING *`,
+      [vehiculo_id, permiso.id]
+    );
+    permiso = vehiculoRows[0];
+  }
 
   // Integración con el Microservicio de Riesgo (Módulo 3): si no responde,
   // el permiso queda creado igual y sin evaluación (se puede reintentar).
@@ -311,4 +322,122 @@ async function bitacora(req, res) {
   res.json(eventos);
 }
 
-module.exports = { crear, listar, aprobar, activar, cola, revocar, asignarMovil, bitacora };
+// POST /api/permisos/:id/validar-patente — usado por el Inspector/Supervisor
+// en terreno para confirmar que el camión escaneado (patente) es el mismo
+// que tiene declarado el permiso. Solo compara: no crea infracción sola.
+async function validarPatente(req, res) {
+  const { patente } = req.body;
+
+  if (!patente) {
+    return res.status(400).json({ error: 'patente es obligatoria' });
+  }
+
+  const { rows } = await pool.query(
+    `SELECT p.id AS permiso_id, p.comuna_id, v.id AS vehiculo_id, v.patente
+     FROM permiso p
+     LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
+     WHERE p.id = $1 AND p.comuna_id = $2`,
+    [req.params.id, req.usuario.comuna_id]
+  );
+
+  const permiso = rows[0];
+
+  if (!permiso) {
+    return res.status(404).json({ error: 'Permiso no encontrado' });
+  }
+
+  if (!permiso.vehiculo_id) {
+    return res.status(409).json({ error: 'El permiso no tiene un vehículo asociado' });
+  }
+
+  const patenteNormalizada = (p) => p.replace(/[\s-]/g, '').toUpperCase();
+  const coincide = patenteNormalizada(permiso.patente) === patenteNormalizada(patente);
+
+  await bitacoraService.registrarEvento({
+    permisoId: permiso.permiso_id,
+    comunaId: req.usuario.comuna_id,
+    tipoEvento: 'VALIDACION_PATENTE',
+    detalle: { patente_permiso: permiso.patente, patente_escaneada: patente, coincide },
+    actorId: req.usuario.sub,
+  });
+
+  res.json({ coincide, patente_permiso: permiso.patente, patente_escaneada: patente });
+}
+
+function calcularEstadoOperativo(permiso) {
+  const ahora = Date.now();
+  const inicio = new Date(permiso.geofencing_confirmado_at).getTime();
+  const fin = new Date(permiso.ventana_fin).getTime();
+
+  const duracionTotalMin = Math.round((fin - inicio) / 60000);
+  const transcurridoMin = Math.round((ahora - inicio) / 60000);
+  const restanteMin = Math.round((fin - ahora) / 60000);
+
+  return {
+    id: permiso.id,
+    comuna_id: permiso.comuna_id,
+    estado: permiso.estado,
+    inicio: permiso.geofencing_confirmado_at,
+    fin_programado: permiso.ventana_fin,
+    duracion_total_min: duracionTotalMin,
+    transcurrido_min: transcurridoMin,
+    restante_min: restanteMin,
+    vencido: restanteMin < 0,
+  };
+}
+
+// GET /api/permisos/:id/operativo — tiempos en vivo de un servicio activo
+// (inicio real = geofencing_confirmado_at), para el detalle en el mapa.
+async function operativo(req, res) {
+  const { rows } = await pool.query(
+    `SELECT id, comuna_id, usuario_id, estado, geofencing_confirmado_at, ventana_fin
+     FROM permiso WHERE id = $1`,
+    [req.params.id]
+  );
+  const permiso = rows[0];
+
+  if (!permiso) {
+    return res.status(404).json({ error: 'Permiso no encontrado' });
+  }
+
+  const esMunicipal = ROLES_MUNICIPALES.includes(req.usuario.rol);
+  const esDueno = permiso.usuario_id === req.usuario.sub;
+  if (!esDueno && !(esMunicipal && permiso.comuna_id === req.usuario.comuna_id)) {
+    return res.status(403).json({ error: 'Sin acceso al estado operativo de este permiso' });
+  }
+
+  if (!permiso.geofencing_confirmado_at) {
+    return res.status(409).json({ error: 'El permiso aún no se ha activado en terreno' });
+  }
+
+  res.json(calcularEstadoOperativo(permiso));
+}
+
+// GET /api/permisos/operativos — todos los servicios en curso de la comuna
+// del operador, con sus tiempos — alimenta la animación del mapa (Módulo 1).
+async function operativos(req, res) {
+  const { rows } = await pool.query(
+    `SELECT id, comuna_id, usuario_id, estado, geofencing_confirmado_at, ventana_fin,
+            ST_AsGeoJSON(area)::json AS area
+     FROM permiso
+     WHERE comuna_id = $1 AND estado IN ('ACTIVO', 'ACTIVO_PENDIENTE_EVIDENCIA')
+       AND geofencing_confirmado_at IS NOT NULL`,
+    [req.usuario.comuna_id]
+  );
+
+  res.json(rows.map(({ area, ...permiso }) => ({ ...calcularEstadoOperativo(permiso), area })));
+}
+
+module.exports = {
+  crear,
+  listar,
+  aprobar,
+  activar,
+  cola,
+  revocar,
+  asignarMovil,
+  bitacora,
+  validarPatente,
+  operativo,
+  operativos,
+};
