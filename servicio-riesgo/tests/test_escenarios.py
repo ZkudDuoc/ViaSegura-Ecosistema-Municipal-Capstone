@@ -1,82 +1,46 @@
-"""Pruebas con distintos escenarios de riesgo (Semana 3, calibración).
+"""Pruebas con distintos escenarios de riesgo (calibración) sobre rutas
+como las que arma el frontend al presionar "iniciar trabajo".
 
-El plan pide explícitamente probar los 3 niveles de riesgo por separado.
-Los polígonos de este archivo se encontraron corriendo escenarios
-aleatorios sobre el dataset real (ver scripts/calibrar_parametros.py) y
-verificando a mano que cada uno cae en el nivel esperado con las
-constantes ya calibradas — si algún día se recalibra de nuevo, hay que
-volver a buscarlos (no son coordenadas mágicas, son solo ejemplos reales
-que hoy dan ese resultado).
+Cada escenario es un camión de 150 m de ruta centrado en un incidente real
+del dataset, evaluado para el 2026-10-15 (época de la demo). Salieron de
+`python scripts/generar_escenarios_demo.py --fecha 2026-10-15`. Están
+fijados a propósito: si alguien recalibra RISK_TAU / umbrales / buffer o
+regenera el dataset y un nivel cambia, este test falla y obliga a
+revisar el efecto (no son coordenadas mágicas, son regresión de
+calibración).
 """
 
-POLIGONO_UN_INCIDENTE = {
-    "type": "Polygon",
-    "coordinates": [
-        [
-            [-70.6771, -33.4378],
-            [-70.6697, -33.4378],
-            [-70.6697, -33.4304],
-            [-70.6771, -33.4304],
-            [-70.6771, -33.4378],
-        ]
-    ],
+import pytest
+
+from tests.poligonos_ruta import poligono_desde_ruta_recta
+
+FECHA = "2026-10-15"
+LARGO_M = 150
+RUMBO = 90
+
+# nombre: (lat, lon, nivel esperado, incidentes esperados, risk_score esperado)
+ESCENARIOS = {
+    "bajo": (-33.421799, -70.695054, "bajo", 1, 32.97),
+    "medio": (-33.403018, -70.643878, "medio", 1, 55.07),
+    "alto": (-33.460763, -70.667891, "alto", 2, 86.47),
+    "sin_riesgo": (-33.4105, -70.6905, "bajo", 0, 0.0),
 }
 
-POLIGONO_DOS_INCIDENTES = {
-    "type": "Polygon",
-    "coordinates": [
-        [
-            [-70.6855, -33.4794],
-            [-70.6745, -33.4794],
-            [-70.6745, -33.4684],
-            [-70.6855, -33.4684],
-            [-70.6855, -33.4794],
-        ]
-    ],
-}
 
-POLIGONO_TRES_INCIDENTES = {
-    "type": "Polygon",
-    "coordinates": [
-        [
-            [-70.6251, -33.4709],
-            [-70.6125, -33.4709],
-            [-70.6125, -33.4583],
-            [-70.6251, -33.4583],
-            [-70.6251, -33.4709],
-        ]
-    ],
-}
-
-FECHA = "2025-05-15"
-TIPO = "PROGRAMADA"
-
-
-def test_escenario_riesgo_bajo(client):
+@pytest.mark.parametrize("nombre", list(ESCENARIOS))
+def test_escenario_por_nivel(client, nombre):
+    lat, lon, nivel, n_incidentes, risk_score = ESCENARIOS[nombre]
     response = client.post(
         "/score",
-        json={"poligono": POLIGONO_UN_INCIDENTE, "fecha": FECHA, "tipo_actividad": TIPO},
+        json={
+            "poligono": poligono_desde_ruta_recta(lat, lon, LARGO_M, RUMBO),
+            "fecha": FECHA,
+            "tipo_actividad": "PROGRAMADA",
+        },
     )
+
     body = response.json()
-    assert body["nivel"] == "bajo"
-    assert body["n_incidentes_considerados"] == 1
-
-
-def test_escenario_riesgo_medio(client):
-    response = client.post(
-        "/score",
-        json={"poligono": POLIGONO_DOS_INCIDENTES, "fecha": FECHA, "tipo_actividad": TIPO},
-    )
-    body = response.json()
-    assert body["nivel"] == "medio"
-    assert body["n_incidentes_considerados"] == 2
-
-
-def test_escenario_riesgo_alto(client):
-    response = client.post(
-        "/score",
-        json={"poligono": POLIGONO_TRES_INCIDENTES, "fecha": FECHA, "tipo_actividad": TIPO},
-    )
-    body = response.json()
-    assert body["nivel"] == "alto"
-    assert body["n_incidentes_considerados"] >= 3
+    assert response.status_code == 200
+    assert body["nivel"] == nivel
+    assert body["n_incidentes_considerados"] == n_incidentes
+    assert body["risk_score"] == pytest.approx(risk_score, abs=0.01)
