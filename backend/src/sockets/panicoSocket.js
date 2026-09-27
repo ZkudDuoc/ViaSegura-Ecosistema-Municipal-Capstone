@@ -59,10 +59,13 @@ function registrarPanicoSocket(io) {
           return;
         }
 
-        const { rows } = await pool.query(
-          `SELECT id, comuna_id FROM permiso
-           WHERE usuario_id = $1 AND estado IN ('ACTIVO', 'ACTIVO_PENDIENTE_EVIDENCIA')
-           ORDER BY created_at DESC LIMIT 1`,
+          const { rows } = await pool.query(
+          `SELECT p.id, p.comuna_id, p.rut_ejecutor,
+          v.patente, v.alto_m, v.ancho_m, v.largo_m, v.peso_ton
+           FROM permiso p
+           LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
+           WHERE p.usuario_id = $1 AND p.estado IN ('ACTIVO', 'ACTIVO_PENDIENTE_EVIDENCIA')
+           ORDER BY p.created_at DESC LIMIT 1`,
           [usuarioId]
         );
         const permiso = rows[0];
@@ -82,11 +85,21 @@ function registrarPanicoSocket(io) {
 
         socket.emit('panico:confirmado', { recibidoEn: alerta.activado_at });
 
-        const evento = {
+                const evento = {
           alertaId: alerta.id,
           permisoId: permiso.id,
           usuarioId,
           nombre,
+          rutEjecutor: permiso.rut_ejecutor,
+          vehiculo: permiso.patente
+            ? {
+                patente: permiso.patente,
+                alto_m: Number(permiso.alto_m),
+                ancho_m: Number(permiso.ancho_m),
+                largo_m: Number(permiso.largo_m),
+                peso_ton: Number(permiso.peso_ton),
+              }
+            : null,
           ubicacion,
           activadoEn: alerta.activado_at,
         };
