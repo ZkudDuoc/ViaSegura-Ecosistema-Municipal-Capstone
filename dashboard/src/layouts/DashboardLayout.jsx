@@ -1,31 +1,24 @@
 import { NavLink, Outlet } from "react-router-dom";
-import { useRole, ROLES } from "../context/RoleContext";
+import { useAuth } from "../context/AuthContext";
 import "./DashboardLayout.css";
 
-const NAV_BY_ROLE = {
-  [ROLES.OPERADOR]: [{ to: "/operador", label: "Bandeja de decisiones" }],
-  [ROLES.SUPERVISOR]: [{ to: "/supervisor", label: "Reportería" }],
-};
+// Supervisor dejó de ser un rol/login propio: la reportería es una sección
+// más del panel del Operador Central.
+const NAV_LINKS = [
+  { to: "/operador", label: "Bandeja de decisiones" },
+  { to: "/reporteria", label: "Reportería" },
+];
 
 export default function DashboardLayout() {
-  const { role, setRole } = useRole();
-  const links = NAV_BY_ROLE[role];
+  const { usuario, logout } = useAuth();
 
   return (
     <div className="layout">
       <aside className="sidebar">
         <div className="brand">VíaSegura</div>
 
-        <div className="role-switch">
-          <label htmlFor="role-select">Rol activo</label>
-          <select id="role-select" value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value={ROLES.OPERADOR}>Operador Central</option>
-            <option value={ROLES.SUPERVISOR}>Supervisor</option>
-          </select>
-        </div>
-
         <nav>
-          {links.map((link) => (
+          {NAV_LINKS.map((link) => (
             <NavLink
               key={link.to}
               to={link.to}
@@ -35,6 +28,14 @@ export default function DashboardLayout() {
             </NavLink>
           ))}
         </nav>
+
+        <div className="sidebar-usuario">
+          <div className="sidebar-usuario-nombre">{usuario?.nombre}</div>
+          <div className="sidebar-usuario-rol">Operador Central</div>
+          <button type="button" className="btn-logout" onClick={logout}>
+            Cerrar sesión
+          </button>
+        </div>
       </aside>
 
       <main className="content">

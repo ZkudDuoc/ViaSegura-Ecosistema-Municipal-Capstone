@@ -136,3 +136,23 @@
   margin-top: 4px;
   max-width: 180px;
 }
+
+.operativos-leyenda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 20px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.leyenda-gradiente {
+  width: 64px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #16a34a, #f59e0b, #dc2626);
+}
+
+.leyenda-separador {
+  opacity: 0.6;
+}

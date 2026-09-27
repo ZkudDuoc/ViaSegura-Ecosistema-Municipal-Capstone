@@ -5,6 +5,11 @@ import { useAuth } from "../context/AuthContext";
 import { procesarColaLocal } from "../services/panicoService";
 import "./PanicoAlertas.css";
 
+function formatearVehiculo(vehiculo) {
+  if (!vehiculo) return "Sin vehículo asociado";
+  return `${vehiculo.patente} · ${vehiculo.largo_m} × ${vehiculo.ancho_m} m · ${vehiculo.alto_m} m alto`;
+}
+
 // Cascada de resiliencia del pánico (Semana 3, backend): el servidor entrega
 // la alerta por WebSocket en vivo ("panico:nuevo") si hay un operador
 // conectado; si no, escala a SMS y por último a una cola local que se
@@ -52,7 +57,7 @@ export default function PanicoAlertas() {
     <div className="panico-alertas">
       {alertas.map((alerta, i) => (
         <div key={alerta.alertaId ?? alerta.colaLocalId ?? i} className="panico-alerta">
-          <div>
+          <div className="panico-alerta-info">
             <strong>🚨 Pánico — {alerta.nombre ?? "Chofer"}</strong>
             <div className="panico-alerta-detalle">
               {alerta.origen === "cola_local"
@@ -60,7 +65,35 @@ export default function PanicoAlertas() {
                 : "Alerta en vivo"}
               {alerta.activadoEn && ` · ${new Date(alerta.activadoEn).toLocaleTimeString()}`}
             </div>
+
+            <dl className="panico-alerta-datos">
+              <div>
+                <dt>RUT</dt>
+                <dd>{alerta.rutEjecutor ?? "—"}</dd>
+              </div>
+              <div>
+                <dt>Vehículo</dt>
+                <dd>{formatearVehiculo(alerta.vehiculo)}</dd>
+              </div>
+              <div>
+                <dt>Ubicación</dt>
+                <dd>
+                  {alerta.ubicacion ? (
+                    <a
+                      href={`https://www.google.com/maps?q=${alerta.ubicacion.lat},${alerta.ubicacion.lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {alerta.ubicacion.lat.toFixed(5)}, {alerta.ubicacion.lng.toFixed(5)} ↗
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </dd>
+              </div>
+            </dl>
           </div>
+
           {alerta.colaLocalId && (
             <button className="btn-secondary" onClick={() => handleAtender(alerta)}>
               Marcar atendida

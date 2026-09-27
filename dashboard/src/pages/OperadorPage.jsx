@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import PanicoAlertas from "../components/PanicoAlertas";
 import MapView from "../components/MapView";
-import { listarPendientes, aprobarPermiso, revocarPermiso } from "../services/permisoService";
+import { listarPendientes, aprobarPermiso, revocarPermiso, listarOperativos } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
 import "./OperadorPage.css";
 
@@ -23,11 +23,14 @@ const MOTIVO_COLA_LABEL = {
   RIESGO_ALTO_SIN_MOVIL: "Riesgo alto — falta asignar móvil de escolta",
 };
 
+const REFRESCO_OPERATIVOS_MS = 30_000;
+
 export default function OperadorPage() {
   const [solicitudes, setSolicitudes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [procesandoId, setProcesandoId] = useState(null);
   const [error, setError] = useState(null);
+  const [operativos, setOperativos] = useState([]);
 
   const cargar = () => listarPendientes().then(setSolicitudes);
 
@@ -35,6 +38,18 @@ export default function OperadorPage() {
     cargar()
       .catch((err) => setError(getApiErrorMessage(err)))
       .finally(() => setLoading(false));
+  }, []);
+
+  // Servicios en curso para la animación del mapa. Si falla, el mapa queda
+  // sin marcadores pero la bandeja sigue funcionando.
+  useEffect(() => {
+    const cargarOperativos = () =>
+      listarOperativos()
+        .then(setOperativos)
+        .catch(() => {});
+    cargarOperativos();
+    const id = setInterval(cargarOperativos, REFRESCO_OPERATIVOS_MS);
+    return () => clearInterval(id);
   }, []);
 
   const handleAprobar = async (id) => {
@@ -64,11 +79,17 @@ export default function OperadorPage() {
     }
   };
 
-    return (
+  return (
     <div>
       <h1>Bandeja de decisiones</h1>
       <PanicoAlertas />
-      <MapView height={360} />
+      <MapView height={360} operativos={operativos} />
+      <div className="operativos-leyenda">
+        <span className="leyenda-gradiente" />
+        <span>Recién iniciado</span>
+        <span className="leyenda-separador">→</span>
+        <span>Por terminar</span>
+      </div>
 
       {loading && <p className="page-subtitle">Cargando solicitudes…</p>}
       {error && <p className="pending-banner error-banner">{error}</p>}
