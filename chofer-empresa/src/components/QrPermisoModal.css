@@ -1,0 +1,45 @@
+.qr-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.qr-modal {
+  width: 100%;
+  max-width: 340px;
+  text-align: center;
+  padding: 24px;
+}
+
+.qr-modal h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.qr-codigo {
+  display: flex;
+  justify-content: center;
+  background: #fff;
+  border-radius: 12px;
+  padding: 8px;
+  margin-bottom: 8px;
+}
+
+.qr-codigo svg {
+  width: 100%;
+  height: auto;
+  max-width: 240px;
+}
+
+.qr-id {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
