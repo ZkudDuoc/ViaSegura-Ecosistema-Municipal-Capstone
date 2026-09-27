@@ -1,0 +1,25 @@
+{
+  "name": "viasegura-supervisor",
+  "version": "0.1.0",
+  "description": "VíaSegura — app de Supervisor municipal (PWA): escaneo de permisos, validación de patente e infracciones.",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "generar-iconos": "pwa-assets-generator --preset minimal-2023 public/logo.png"
+  },
+  "dependencies": {
+    "axios": "^1.7.4",
+    "html5-qrcode": "^2.3.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@vite-pwa/assets-generator": "^0.2.6",
+    "@vitejs/plugin-react": "^4.3.1",
+    "vite": "^5.4.1",
+    "vite-plugin-pwa": "^0.20.5"
+  }
+}
