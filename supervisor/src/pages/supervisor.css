@@ -1,0 +1,110 @@
+.lector {
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.lector.activo {
+  border: 2px dashed var(--color-primary);
+  min-height: 260px;
+  background: #000;
+}
+
+.busqueda-manual {
+  margin-top: 24px;
+}
+
+.veredicto {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  border-radius: 14px;
+  padding: 20px 16px;
+  margin: 12px 0 16px;
+  color: #fff;
+}
+
+.veredicto strong {
+  font-size: 28px;
+  letter-spacing: 2px;
+}
+
+.veredicto span {
+  font-size: 14px;
+  opacity: 0.95;
+}
+
+.veredicto.vigente {
+  background: var(--color-success);
+}
+
+.veredicto.no-vigente {
+  background: var(--color-danger);
+}
+
+.resultado-patente {
+  margin: 12px 0 0;
+}
+
+.datos-permiso {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+  margin: 0;
+}
+
+.datos-permiso dt {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.datos-permiso dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.campo textarea {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 16px;
+  resize: vertical;
+  width: 100%;
+}
+
+.multas-nueva {
+  margin: 0 0 16px;
+}
+
+.multa-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.multa-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.multa-foto {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.btn-multa {
+  background: var(--color-danger);
+}

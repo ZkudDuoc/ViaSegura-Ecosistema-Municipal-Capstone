@@ -1,0 +1,128 @@
+:root {
+  --color-primary: #0b5fff;
+  --color-primary-dark: #0842b0;
+  --color-bg: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-text: #1a2333;
+  --color-text-muted: #6b7686;
+  --color-border: #e1e5eb;
+  --color-success: #1da362;
+  --color-warning: #e0a100;
+  --color-danger: #e4483b;
+
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+  font-size: 16px; /* 16px evita el zoom automático de iOS al enfocar un input */
+}
+
+h1 {
+  font-size: 22px;
+  margin: 0 0 4px;
+}
+
+.subtitulo {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  margin: 0 0 20px;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 16px;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.campo label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.campo input,
+.campo select {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  width: 100%;
+}
+
+.btn-primary,
+.btn-secondary {
+  width: 100%;
+  border-radius: 12px;
+  padding: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary-dark);
+  border: 1px solid var(--color-primary);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.texto-error {
+  color: var(--color-danger);
+  font-size: 14px;
+}
+
+.texto-exito {
+  color: var(--color-success);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pantalla-cargando {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-muted);
+}

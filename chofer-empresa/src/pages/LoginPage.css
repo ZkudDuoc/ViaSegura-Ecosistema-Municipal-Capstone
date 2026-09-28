@@ -1,0 +1,82 @@
+.login-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 360px;
+  padding: 28px 24px;
+}
+.password-wrapper {
+  position: relative;
+}
+
+.password-wrapper input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.password-toggle:hover {
+  color: var(--color-text);
+}
+.registro-card {
+  max-width: 420px;
+}
+
+.modo-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 18px;
+}
+
+.modo-opcion {
+  border: none;
+  background: none;
+  border-radius: 9px;
+  padding: 10px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.modo-opcion.activo {
+  background: var(--color-surface);
+  color: var(--color-primary-dark);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.modo-ayuda {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+}
+
+.login-alternativa {
+  text-align: center;
+  font-size: 14px;
+  margin: 16px 0 0;
+}

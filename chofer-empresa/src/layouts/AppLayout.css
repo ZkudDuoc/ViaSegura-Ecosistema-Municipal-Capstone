@@ -1,0 +1,126 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 24px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-primary-dark);
+}
+
+.app-nav {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.app-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.app-nav-link:hover {
+  background: var(--color-bg);
+}
+
+.app-nav-link.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.app-usuario {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.app-logout {
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.app-content {
+  flex: 1;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Celular: el menú pasa a una barra fija abajo, estilo app. */
+@media (max-width: 640px) {
+  .app-header {
+    padding: 12px 16px;
+    gap: 12px;
+  }
+
+  .app-usuario-nombre {
+    display: none;
+  }
+
+  .app-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    justify-content: space-around;
+  }
+
+  .app-nav-link {
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    padding: 6px 8px;
+    flex: 1;
+  }
+
+  .app-nav-icono {
+    font-size: 20px;
+  }
+
+  .app-content {
+    padding-bottom: 96px; /* espacio para la barra de abajo */
+  }
+}
+.app-modo {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #dce8ff;
+  color: var(--color-primary-dark);
+  white-space: nowrap;
+}
+
+.app-modo.natural {
+  background: #e1f5ea;
+  color: #13774a;
+}

@@ -1,0 +1,44 @@
+import { NavLink, Outlet } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import "./AppLayout.css";
+
+const NAV_LINKS = [
+  { to: "/", label: "Escanear", end: true },
+  { to: "/multas", label: "Multas" },
+];
+
+export default function AppLayout() {
+  const { usuario, logout } = useAuth();
+
+  return (
+    <div className="app">
+      <header className="app-header">
+        <div className="app-brand">VíaSegura</div>
+
+        <nav className="app-nav">
+          {NAV_LINKS.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              end={link.end}
+              className={({ isActive }) => "app-nav-link" + (isActive ? " active" : "")}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="app-usuario">
+          <span className="app-usuario-nombre">{usuario?.nombre}</span>
+          <button type="button" className="app-logout" onClick={logout}>
+            Salir
+          </button>
+        </div>
+      </header>
+
+      <main className="app-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
