@@ -1,8 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { obtenerPermiso, validarPatente, obtenerOperativo } from "../services/permisoService";
+import { obtenerPermiso, validarPatente, obtenerOperativo, listarInspecciones } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
-import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../utils/formato";
+import {
+  ESTADO_LABEL,
+  ESTADO_CLASE,
+  RESULTADO_INSPECCION_LABEL,
+  RESULTADO_INSPECCION_CLASE,
+  formatearFecha,
+} from "../utils/formato";
 import "./paginas.css";
 import "./supervisor.css";
 
@@ -29,10 +35,15 @@ function normalizarPatente(patente) {
   return patente.replace(/[\s-]/g, "").toUpperCase();
 }
 
+function Indicador({ ok, textoOk, textoNo }) {
+  return <span className={"indicador " + (ok ? "ok" : "no")}>{ok ? textoOk : textoNo}</span>;
+}
+
 export default function PermisoPage() {
   const { id } = useParams();
   const [permiso, setPermiso] = useState(null);
   const [operativo, setOperativo] = useState(null);
+  const [inspecciones, setInspecciones] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
 
@@ -48,6 +59,7 @@ export default function PermisoPage() {
         if (encontrado?.geofencing_confirmado_at) {
           obtenerOperativo(id).then(setOperativo).catch(() => {});
         }
+        listarInspecciones(id).then(setInspecciones).catch(() => {});
       })
       .catch((err) => {
         if (err?.response?.status === 404 || err?.response?.status === 403) setPermiso(null);
@@ -93,6 +105,7 @@ export default function PermisoPage() {
 
   const vigencia = evaluarVigencia(permiso);
   const tieneFoto = permiso.foto_evidencia_url?.startsWith("data:image") || permiso.foto_evidencia_url?.startsWith("http");
+  const vehiculos = [permiso.vehiculo, ...(permiso.vehiculos_adicionales ?? [])].filter(Boolean);
 
   return (
     <div>
@@ -138,6 +151,14 @@ export default function PermisoPage() {
           ))}
         {errorPatente && <p className="texto-error resultado-patente">{errorPatente}</p>}
       </section>
+
+      <Link
+        to={`/permisos/${permiso.id}/inspeccion`}
+        state={{ patenteCoincide: validacion ? validacion.coincide : null }}
+        className="btn-primary btn-accion btn-inspeccion"
+      >
+        Inspección en terreno
+      </Link>
 
       <section className="card paso">
         <h2 className="paso-titulo">Datos del permiso</h2>
@@ -185,6 +206,46 @@ export default function PermisoPage() {
         </dl>
       </section>
 
+      <section className="card paso">
+        <h2 className="paso-titulo">Personal registrado</h2>
+        {permiso.personal?.length ? (
+          <ul className="lista-registrados">
+            {permiso.personal.map((p) => (
+              <li key={p.id}>
+                <div>
+                  <strong>{p.nombre ?? "Sin nombre"}</strong>
+                  <span className="permiso-detalle">{p.rut}</span>
+                </div>
+                <div className="indicadores">
+                  <Indicador ok={p.contrato_vigente} textoOk="Contrato al día" textoNo="Sin contrato" />
+                  <Indicador ok={p.epp_al_dia} textoOk="EPP al día" textoNo="EPP vencido" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="permiso-detalle">La solicitud no declaró personal.</p>
+        )}
+      </section>
+
+      <section className="card paso">
+        <h2 className="paso-titulo">Vehículos y maquinaria registrados</h2>
+        {vehiculos.length ? (
+          <ul className="lista-registrados">
+            {vehiculos.map((v) => (
+              <li key={v.patente}>
+                <strong className="patente">{v.patente}</strong>
+                <span className="permiso-detalle">
+                  {Number(v.largo_m)} × {Number(v.ancho_m)} m · {Number(v.alto_m)} m alto
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="permiso-detalle">La solicitud no declaró vehículos.</p>
+        )}
+      </section>
+
       {tieneFoto && (
         <section className="card paso">
           <h2 className="paso-titulo">Foto de evidencia del chofer</h2>
@@ -192,7 +253,26 @@ export default function PermisoPage() {
         </section>
       )}
 
-            <Link to={`/multas/nueva?permiso=${permiso.id}`} className="btn-primary btn-accion btn-multa">
+      {inspecciones.length > 0 && (
+        <section className="card paso">
+          <h2 className="paso-titulo">Inspecciones anteriores</h2>
+          <ul className="lista-registrados">
+            {inspecciones.map((i) => (
+              <li key={i.id}>
+                <div>
+                  <span className={`badge ${RESULTADO_INSPECCION_CLASE[i.resultado] ?? ""}`}>
+                    {RESULTADO_INSPECCION_LABEL[i.resultado] ?? i.resultado}
+                  </span>
+                  {i.observaciones && <span className="permiso-detalle">{i.observaciones}</span>}
+                </div>
+                <span className="permiso-detalle">{formatearFecha(i.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <Link to={`/multas/nueva?permiso=${permiso.id}`} className="btn-primary btn-accion btn-multa">
         Registrar multa
       </Link>
 
