@@ -53,7 +53,18 @@ export function activarPermiso(permisoId, foto_evidencia_url) {
 
 // El Backend filtra automáticamente por el usuario autenticado (chofer ve
 // las suyas, roles municipales ven las de su comuna) — no hace falta pasar
-// ningún filtro desde el cliente.
+// ningún filtro desde el cliente. Liviano: sin foto (ver obtenerPermiso).
 export function listarPermisos() {
   return api.get("/permisos").then((res) => res.data);
+}
+
+// Detalle completo: foto, vehículo, personal en faena, riesgo con score y
+// línea de tiempo (bitácora).
+export function obtenerPermiso(permisoId) {
+  return api.get(`/permisos/${permisoId}`).then((res) => res.data);
+}
+
+// El chofer cierra manualmente su servicio.
+export function finalizarPermiso(permisoId) {
+  return api.patch(`/permisos/${permisoId}/finalizar`).then((res) => res.data);
 }

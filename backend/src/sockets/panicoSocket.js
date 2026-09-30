@@ -5,13 +5,21 @@ const bitacoraService = require('../services/bitacoraService');
 
 const ROLES_MUNICIPALES = ['OPERADOR_MUNICIPAL', 'INSPECTOR_MUNICIPAL'];
 
-// Contrato acordado con la app móvil (app-movil/src/services/panicoSocket.js):
-//   cliente emite "panico:enviar"      -> { usuarioId, nombre, ubicacion: { lat, lng }, timestamp }
+// Contrato acordado con la app móvil (app-movil/src/services/panicoSocket.js)
+// y con la web chofer-empresa (PanicoPage.jsx):
+//   cliente se conecta con `auth: { token }` (JWT del login) — OBLIGATORIO.
+//   cliente emite "panico:enviar"      -> { ubicacion: { lat, lng }, timestamp }
 //   servidor emite "panico:confirmado" -> { recibidoEn }
 //   servidor emite "panico:error"      -> { error }
-// Este contrato con el chofer NO cambia: la cascada de resiliencia de abajo
-// decide cómo llega el aviso a los operadores municipales, pero el chofer
-// siempre recibe "panico:confirmado" en cuanto la alerta queda registrada.
+// Seguridad (Semana 5): el usuario que dispara la alerta se identifica SOLO
+// por el JWT del handshake (socket.usuario.sub), nunca por un campo del
+// payload — así nadie puede disparar una alerta a nombre de otro chofer.
+// Si el cliente todavía manda `usuarioId`/`nombre` en el payload (versión
+// vieja), se ignoran sin romper la conexión.
+// Este contrato con el chofer NO cambia más allá de eso: la cascada de
+// resiliencia de abajo decide cómo llega el aviso a los operadores
+// municipales, pero el chofer siempre recibe "panico:confirmado" en cuanto
+// la alerta queda registrada.
 //
 // Contrato con el dashboard municipal (operador conectado con token, une
 // la sala `comuna:<id>`):
@@ -38,6 +46,17 @@ function registrarPanicoSocket(io) {
     if (token) {
       try {
         socket.usuario = verificarToken(token);
+
+        if (socket.usuario.tipo === 'CODIGO_CHOFER') {
+          // Sesión limitada (canje de código, sin cuenta): solo puede recibir
+          // eventos de su propio servicio.
+          socket.join(`permiso:${socket.usuario.permisoId}`);
+        } else if (socket.usuario.sub) {
+          // Cualquier usuario con cuenta: sala personal para eventos de sus
+          // propias solicitudes (aprobada/rechazada/revocada, Semana 5 Bloque 2).
+          socket.join(`usuario:${socket.usuario.sub}`);
+        }
+
         if (ROLES_MUNICIPALES.includes(socket.usuario.rol)) {
           const comunaId = socket.usuario.comuna_id;
           socket.join(`comuna:${comunaId}`);
@@ -52,21 +71,43 @@ function registrarPanicoSocket(io) {
 
     socket.on('panico:enviar', async (payload) => {
       try {
-        const { usuarioId, nombre, ubicacion } = payload || {};
+        // Seguridad (Semana 5): el usuario NUNCA se toma del payload que manda
+        // el cliente (antes se confiaba en `usuarioId`, lo que permitía a
+        // cualquiera disparar una alerta a nombre de otro chofer) — se saca
+        // del JWT verificado en el handshake de la conexión.
+        if (!socket.usuario) {
+          socket.emit('panico:error', { error: 'Debes iniciar sesión para enviar una alerta de pánico' });
+          return;
+        }
 
-        if (!usuarioId || !ubicacion || typeof ubicacion.lat !== 'number' || typeof ubicacion.lng !== 'number') {
+        const esCodigoChofer = socket.usuario.tipo === 'CODIGO_CHOFER';
+        const usuarioId = esCodigoChofer ? null : socket.usuario.sub;
+        const { ubicacion } = payload || {};
+
+        if (!ubicacion || typeof ubicacion.lat !== 'number' || typeof ubicacion.lng !== 'number') {
           socket.emit('panico:error', { error: 'Datos de pánico incompletos' });
           return;
         }
 
-          const { rows } = await pool.query(
-          `SELECT p.id, p.comuna_id, p.rut_ejecutor,
-          v.patente, v.alto_m, v.ancho_m, v.largo_m, v.peso_ton
-           FROM permiso p
-           LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
-           WHERE p.usuario_id = $1 AND p.estado IN ('ACTIVO', 'ACTIVO_PENDIENTE_EVIDENCIA')
-           ORDER BY p.created_at DESC LIMIT 1`,
-          [usuarioId]
+        // Sesión con cuenta: se busca el permiso ACTIVO más reciente del
+        // usuario. Sesión de código de chofer (sin cuenta): el permiso ya
+        // viene fijo desde el canje, no hace falta "más reciente".
+        const { rows } = await pool.query(
+          esCodigoChofer
+            ? `SELECT p.id, p.comuna_id, p.rut_ejecutor, u.nombre,
+               v.patente, v.alto_m, v.ancho_m, v.largo_m, v.peso_ton
+               FROM permiso p
+               JOIN usuario u ON u.id = p.usuario_id
+               LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
+               WHERE p.id = $1 AND p.estado IN ('ACTIVO', 'ACTIVO_PENDIENTE_EVIDENCIA')`
+            : `SELECT p.id, p.comuna_id, p.rut_ejecutor, u.nombre,
+               v.patente, v.alto_m, v.ancho_m, v.largo_m, v.peso_ton
+               FROM permiso p
+               JOIN usuario u ON u.id = p.usuario_id
+               LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
+               WHERE p.usuario_id = $1 AND p.estado IN ('ACTIVO', 'ACTIVO_PENDIENTE_EVIDENCIA')
+               ORDER BY p.created_at DESC LIMIT 1`,
+          [esCodigoChofer ? socket.usuario.permisoId : usuarioId]
         );
         const permiso = rows[0];
 
@@ -89,7 +130,7 @@ function registrarPanicoSocket(io) {
           alertaId: alerta.id,
           permisoId: permiso.id,
           usuarioId,
-          nombre,
+          nombre: permiso.nombre,
           rutEjecutor: permiso.rut_ejecutor,
           vehiculo: permiso.patente
             ? {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { listarPermisos, validarPatente, obtenerOperativo } from "../services/permisoService";
+import { obtenerPermiso, validarPatente, obtenerOperativo } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
 import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../utils/formato";
 import "./paginas.css";
@@ -41,17 +41,18 @@ export default function PermisoPage() {
   const [validacion, setValidacion] = useState(null);
   const [errorPatente, setErrorPatente] = useState(null);
 
-  // No hay GET /permisos/:id: se busca en los permisos de la comuna del supervisor.
   useEffect(() => {
-    listarPermisos()
-      .then((lista) => {
-        const encontrado = lista.find((p) => p.id === id) ?? null;
+    obtenerPermiso(id)
+      .then((encontrado) => {
         setPermiso(encontrado);
         if (encontrado?.geofencing_confirmado_at) {
           obtenerOperativo(id).then(setOperativo).catch(() => {});
         }
       })
-      .catch((err) => setError(getApiErrorMessage(err)))
+      .catch((err) => {
+        if (err?.response?.status === 404 || err?.response?.status === 403) setPermiso(null);
+        else setError(getApiErrorMessage(err));
+      })
       .finally(() => setCargando(false));
   }, [id]);
 
@@ -155,7 +156,7 @@ export default function PermisoPage() {
           </div>
           <div>
             <dt>Riesgo</dt>
-            <dd>{permiso.riesgo ?? "Sin evaluar"}</dd>
+            <dd>{permiso.riesgo ? `${permiso.riesgo.nivel} (score ${permiso.riesgo.score})` : "Sin evaluar"}</dd>
           </div>
           <div>
             <dt>Desde</dt>
