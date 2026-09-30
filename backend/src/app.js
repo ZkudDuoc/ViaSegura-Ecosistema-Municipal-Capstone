@@ -6,6 +6,9 @@ const comunaRoutes = require('./routes/comunaRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
 const panicoRoutes = require('./routes/panicoRoutes');
 const vehiculoRoutes = require('./routes/vehiculoRoutes');
+const codigoChoferRoutes = require('./routes/codigoChoferRoutes');
+const infraccionRoutes = require('./routes/infraccionRoutes');
+const reporteriaRoutes = require('./routes/reporteriaRoutes');
 
 const app = express();
 
@@ -22,6 +25,9 @@ app.use('/api/comunas', comunaRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/panico', panicoRoutes);
 app.use('/api/vehiculos', vehiculoRoutes);
+app.use('/api/codigo-chofer', codigoChoferRoutes);
+app.use('/api/infracciones', infraccionRoutes);
+app.use('/api/reporteria', reporteriaRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Recurso no encontrado' });

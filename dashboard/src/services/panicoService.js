@@ -11,3 +11,13 @@ export function listarColaLocal() {
 export function procesarColaLocal(id) {
   return api.patch(`/panico/cola-local/${id}/procesar`).then((res) => res.data);
 }
+
+// Todas las alertas activas de la comuna (cualquier canal de entrega, no
+// solo las que llegaron a la cola local) — Semana 5.
+export function listarAbiertas() {
+  return api.get("/panico/abiertas").then((res) => res.data);
+}
+
+export function atenderAlerta(id) {
+  return api.patch(`/panico/${id}/atender`).then((res) => res.data);
+}

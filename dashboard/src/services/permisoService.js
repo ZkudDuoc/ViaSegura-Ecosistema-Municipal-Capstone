@@ -1,13 +1,25 @@
 import api from "./api";
 
+// Liviano: sin foto de evidencia (eso va en obtenerPermiso, detalle).
 export function listarPendientes() {
   return api.get("/permisos").then((res) => res.data);
 }
 
-// No existe (todavía) un endpoint de "denegar/rechazar" del lado del
-// Backend — solo aprobar(). Pendiente de coordinar con Joshua.
+// Detalle completo: foto, vehículo (patente+medidas), personal en faena,
+// riesgo con score y línea de tiempo (bitácora: creada, aprobada, iniciada,
+// pánico, finalizada — quién y cuándo).
+export function obtenerPermiso(id) {
+  return api.get(`/permisos/${id}`).then((res) => res.data);
+}
+
 export function aprobarPermiso(id) {
   return api.patch(`/permisos/${id}/aprobar`).then((res) => res.data);
+}
+
+// Rechazo (Semana 5): distinto de revocar — es para una solicitud que TODAVÍA
+// no fue aprobada (o está en cola). motivo es obligatorio.
+export function rechazarPermiso(id, motivo) {
+  return api.patch(`/permisos/${id}/rechazar`, { motivo }).then((res) => res.data);
 }
 
 // Cola de espera con prioridad (Semana 3): EMERGENCIA > menor riesgo > FIFO.
@@ -51,4 +63,9 @@ export function listarOperativos() {
 
 export function obtenerOperativo(id) {
   return api.get(`/permisos/${id}/operativo`).then((res) => res.data);
+}
+
+// PDF de aprobación/rechazo con sello municipal simulado y QR de verificación.
+export function obtenerDocumento(id) {
+  return api.get(`/permisos/${id}/documento`, { responseType: "blob" }).then((res) => res.data);
 }

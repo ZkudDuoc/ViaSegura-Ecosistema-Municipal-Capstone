@@ -1,6 +1,20 @@
 const pool = require('../config/db');
 const riskService = require('../services/riskService');
 const bitacoraService = require('../services/bitacoraService');
+const { emitirEventoSolicitud } = require('../services/eventosService');
+const { verificarToken, firmarTokenQr } = require('../utils/jwt');
+const documentoService = require('../services/documentoService');
+
+const ESTADOS_RECHAZADO = ['RECHAZADO'];
+const ESTADOS_APROBADO_O_POSTERIOR = [
+  'APROBADO',
+  'ACTIVO',
+  'ACTIVO_PENDIENTE_EVIDENCIA',
+  'FINALIZADO',
+  'EXPIRADO',
+  'REVOCADO',
+  'SUSPENDIDO',
+];
 
 const NIVEL_LABEL = { BAJO: 'Bajo', MEDIO: 'Medio', ALTO: 'Alto' };
 
@@ -15,6 +29,14 @@ const ESTADOS_REVOCABLES = [
   'ACTIVO',
   'ACTIVO_PENDIENTE_EVIDENCIA',
 ];
+
+// Estados desde los que un operador municipal puede rechazar una solicitud
+// (distinto de revocar: rechazar es "nunca se aprobó", revocar es "se aprobó
+// y después se retira el permiso").
+const ESTADOS_RECHAZABLES = ['PENDIENTE_CONFIRMACION_MUNICIPAL', 'EN_COLA_ESPERA'];
+
+// Estados desde los que el chofer puede finalizar manualmente su servicio.
+const ESTADOS_FINALIZABLES = ['ACTIVO', 'ACTIVO_PENDIENTE_EVIDENCIA'];
 
 // La app móvil envía el polígono sin repetir el primer punto al final
 // (lo cierra el propio Backend, ver app-movil/src/services/permisoService.js).
@@ -47,6 +69,8 @@ async function crear(req, res) {
     nombre_empresa_ejecutora,
     altura_estimada_m,
     vehiculo_id,
+    vehiculos_ids,
+    personal,
   } = req.body;
 
   if (!rut_ejecutor || !comuna_id || !tipo_actividad || !area || !ventana_inicio || !ventana_fin) {
@@ -92,6 +116,28 @@ async function crear(req, res) {
     permiso = vehiculoRows[0];
   }
 
+  // Maquinaria/vehículos adicionales del permiso (más allá del principal).
+  if (Array.isArray(vehiculos_ids) && vehiculos_ids.length > 0) {
+    await pool.query(
+      `INSERT INTO permiso_vehiculo (permiso_id, vehiculo_id)
+       SELECT $1, UNNEST($2::uuid[])
+       ON CONFLICT DO NOTHING`,
+      [permiso.id, vehiculos_ids]
+    );
+  }
+
+  // Personal en faena: nómina con RUT, contrato vigente y EPP al día.
+  if (Array.isArray(personal) && personal.length > 0) {
+    for (const persona of personal) {
+      if (!persona?.rut) continue;
+      await pool.query(
+        `INSERT INTO personal_faena (permiso_id, rut, nombre, contrato_vigente, epp_al_dia)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [permiso.id, persona.rut, persona.nombre || null, Boolean(persona.contrato_vigente), Boolean(persona.epp_al_dia)]
+      );
+    }
+  }
+
   // Integración con el Microservicio de Riesgo (Módulo 3): si no responde,
   // el permiso queda creado igual y sin evaluación (se puede reintentar).
   let riesgo = null;
@@ -133,9 +179,14 @@ async function crear(req, res) {
     console.error(`No se pudo evaluar el riesgo del permiso ${permiso.id}:`, err.message);
   }
 
-  res.status(201).json({ ...permiso, estado: estadoFinal, riesgo });
+  const permisoFinal = { ...permiso, estado: estadoFinal, riesgo };
+  emitirEventoSolicitud(req, 'solicitud:nueva', permisoFinal);
+
+  res.status(201).json(permisoFinal);
 }
 
+// GET /api/permisos — listado LIVIANO (sin foto de evidencia: esa va en el
+// detalle, GET /api/permisos/:id) para no inflar la respuesta de listas largas.
 async function listar(req, res) {
   const { rol, comuna_id, sub } = req.usuario;
   const esMunicipal = ROLES_MUNICIPALES.includes(rol);
@@ -144,7 +195,7 @@ async function listar(req, res) {
     `SELECT
        p.id, p.usuario_id, p.rut_ejecutor, p.empresa_ejecutora_id, p.nombre_empresa_ejecutora,
        p.comuna_id, p.tipo_actividad, p.altura_estimada_m, p.estado, p.motivo_cola,
-       p.ventana_inicio, p.ventana_fin, p.foto_evidencia_url, p.geofencing_confirmado_at,
+       p.ventana_inicio, p.ventana_fin, p.geofencing_confirmado_at,
        p.created_at, p.updated_at,
        ST_AsGeoJSON(p.area)::json AS area,
        er.nivel AS nivel_riesgo, er.score AS score_riesgo
@@ -166,12 +217,163 @@ async function listar(req, res) {
   res.json(permisos);
 }
 
+// GET /api/permisos/:id — detalle completo: foto de evidencia, vehículo
+// principal + maquinaria/vehículos adicionales, personal en faena, riesgo
+// con score, y línea de tiempo (bitácora: creada, aprobada, iniciada,
+// pánico, finalizada — quién y cuándo).
+async function detalle(req, res) {
+  const { rows } = await pool.query(
+    `SELECT
+       p.*, ST_AsGeoJSON(p.area)::json AS area,
+       er.nivel AS nivel_riesgo, er.score AS score_riesgo,
+       v.patente AS vehiculo_patente, v.alto_m AS vehiculo_alto_m, v.ancho_m AS vehiculo_ancho_m,
+       v.largo_m AS vehiculo_largo_m, v.peso_ton AS vehiculo_peso_ton
+     FROM permiso p
+     LEFT JOIN LATERAL (
+       SELECT nivel, score FROM evaluacion_riesgo e
+       WHERE e.permiso_id = p.id ORDER BY evaluado_at DESC LIMIT 1
+     ) er ON true
+     LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
+     WHERE p.id = $1`,
+    [req.params.id]
+  );
+
+  const permiso = rows[0];
+
+  if (!permiso) {
+    return res.status(404).json({ error: 'Permiso no encontrado' });
+  }
+
+  const esMunicipal = ROLES_MUNICIPALES.includes(req.usuario.rol);
+  const esDueno = permiso.usuario_id === req.usuario.sub;
+  const esCodigoChofer = req.usuario.rol === 'CODIGO_CHOFER' && req.usuario.permisoId === permiso.id;
+  if (!esDueno && !esCodigoChofer && !(esMunicipal && permiso.comuna_id === req.usuario.comuna_id)) {
+    return res.status(403).json({ error: 'Sin acceso a este permiso' });
+  }
+
+  const [{ rows: personal }, { rows: vehiculosAdicionales }, lineaTiempo] = await Promise.all([
+    pool.query('SELECT id, rut, nombre, contrato_vigente, epp_al_dia FROM personal_faena WHERE permiso_id = $1', [permiso.id]),
+    pool.query(
+      `SELECT v.id, v.patente, v.alto_m, v.ancho_m, v.largo_m, v.peso_ton
+       FROM permiso_vehiculo pv JOIN vehiculo v ON v.id = pv.vehiculo_id
+       WHERE pv.permiso_id = $1`,
+      [permiso.id]
+    ),
+    bitacoraService.listarPorPermiso(permiso.id),
+  ]);
+
+  const {
+    nivel_riesgo,
+    score_riesgo,
+    vehiculo_patente,
+    vehiculo_alto_m,
+    vehiculo_ancho_m,
+    vehiculo_largo_m,
+    vehiculo_peso_ton,
+    ...permisoBase
+  } = permiso;
+
+  res.json({
+    ...permisoBase,
+    riesgo: nivel_riesgo ? { nivel: NIVEL_LABEL[nivel_riesgo] ?? nivel_riesgo, score: score_riesgo } : null,
+    vehiculo: vehiculo_patente
+      ? { patente: vehiculo_patente, alto_m: vehiculo_alto_m, ancho_m: vehiculo_ancho_m, largo_m: vehiculo_largo_m, peso_ton: vehiculo_peso_ton }
+      : null,
+    vehiculos_adicionales: vehiculosAdicionales,
+    personal,
+    linea_tiempo: lineaTiempo,
+  });
+}
+
+// GET /api/permisos/:id/qr-token — token firmado y con expiración para el QR
+// que muestra el chofer (Semana 5: ya no es el id crudo del permiso).
+async function generarQrToken(req, res) {
+  const { rows } = await pool.query('SELECT usuario_id, ventana_fin FROM permiso WHERE id = $1', [req.params.id]);
+  const permiso = rows[0];
+
+  if (!permiso) {
+    return res.status(404).json({ error: 'Permiso no encontrado' });
+  }
+
+  const esCodigoChofer = req.usuario.rol === 'CODIGO_CHOFER' && req.usuario.permisoId === req.params.id;
+  if (!esCodigoChofer && permiso.usuario_id !== req.usuario.sub) {
+    return res.status(403).json({ error: 'Sin acceso a este permiso' });
+  }
+
+  const segundosHastaFin = Math.max(60, Math.round((new Date(permiso.ventana_fin).getTime() - Date.now()) / 1000));
+  const token = firmarTokenQr(req.params.id, Math.min(segundosHastaFin, 60 * 60 * 24));
+
+  res.json({ token });
+}
+
+// GET /api/permisos/qr/:token — el Supervisor/Inspector verifica el QR
+// escaneado: valida la firma/expiración y devuelve el mismo detalle completo
+// que GET /:id (respeta el control de acceso por comuna de ese endpoint).
+async function verificarQr(req, res) {
+  let payload;
+  try {
+    payload = verificarToken(req.params.token);
+  } catch (err) {
+    return res.status(400).json({ error: 'QR inválido o expirado' });
+  }
+
+  if (payload.tipo !== 'QR_PERMISO') {
+    return res.status(400).json({ error: 'El código no es un QR de permiso de VíaSegura' });
+  }
+
+  req.params.id = payload.permisoId;
+  return detalle(req, res);
+}
+
+// GET /api/permisos/:id/documento — PDF formal de aprobación/rechazo con
+// sello municipal simulado y QR de verificación (Semana 5 Bloque 3). Solo
+// existe una vez que la municipalidad ya se pronunció (aprobó o rechazó).
+async function documento(req, res) {
+  const { rows } = await pool.query(
+    `SELECT id, usuario_id, comuna_id, rut_ejecutor, nombre_empresa_ejecutora,
+            tipo_actividad, ventana_inicio, ventana_fin, estado
+     FROM permiso WHERE id = $1`,
+    [req.params.id]
+  );
+  const permiso = rows[0];
+
+  if (!permiso) {
+    return res.status(404).json({ error: 'Permiso no encontrado' });
+  }
+
+  const esMunicipal = ROLES_MUNICIPALES.includes(req.usuario.rol);
+  const esDueno = permiso.usuario_id === req.usuario.sub;
+  if (!esDueno && !(esMunicipal && permiso.comuna_id === req.usuario.comuna_id)) {
+    return res.status(403).json({ error: 'Sin acceso a este permiso' });
+  }
+
+  let tipo;
+  if (ESTADOS_RECHAZADO.includes(permiso.estado)) tipo = 'RECHAZO';
+  else if (ESTADOS_APROBADO_O_POSTERIOR.includes(permiso.estado)) tipo = 'APROBACION';
+  else {
+    return res.status(409).json({ error: 'La municipalidad todavía no se pronuncia sobre esta solicitud' });
+  }
+
+  let motivo = null;
+  if (tipo === 'RECHAZO') {
+    const eventos = await bitacoraService.listarPorPermiso(permiso.id);
+    const rechazo = [...eventos].reverse().find((e) => e.tipo_evento === 'RECHAZO_PERMISO');
+    motivo = rechazo?.detalle?.motivo || null;
+  }
+
+  const pdf = await documentoService.generarDocumentoPermiso(permiso, tipo, { motivo });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="permiso-${permiso.id.slice(0, 8)}-${tipo.toLowerCase()}.pdf"`);
+  res.send(pdf);
+}
+
 async function aprobar(req, res) {
   const { rows } = await pool.query(
     `UPDATE permiso
      SET estado = 'APROBADO'
      WHERE id = $1 AND comuna_id = $2 AND estado = 'PENDIENTE_CONFIRMACION_MUNICIPAL'
-     RETURNING id, estado`,
+     RETURNING id, estado, comuna_id, usuario_id`,
     [req.params.id, req.usuario.comuna_id]
   );
 
@@ -179,9 +381,22 @@ async function aprobar(req, res) {
     return res.status(409).json({ error: 'El permiso no está en estado PENDIENTE_CONFIRMACION_MUNICIPAL' });
   }
 
-  res.json(rows[0]);
+  await bitacoraService.registrarEvento({
+    permisoId: rows[0].id,
+    comunaId: rows[0].comuna_id,
+    tipoEvento: 'APROBACION_PERMISO',
+    accion: 'ACEPTAR',
+    actorId: req.usuario.sub,
+  });
+
+  // Habilita en tiempo real a los encargados del servicio (Semana 5 Bloque 3).
+  emitirEventoSolicitud(req, 'solicitud:aprobada', rows[0]);
+
+  res.json({ id: rows[0].id, estado: rows[0].estado });
 }
 
+// Acepta tanto al dueño con cuenta como a una sesión de código de chofer
+// (ver requireAuthOCodigoChofer) — en ambos casos solo sobre SU propio permiso.
 async function activar(req, res) {
   const { foto_evidencia_url } = req.body;
 
@@ -189,21 +404,96 @@ async function activar(req, res) {
     return res.status(400).json({ error: 'foto_evidencia_url es obligatoria' });
   }
 
+  const esCodigoChofer = req.usuario.rol === 'CODIGO_CHOFER';
+  if (esCodigoChofer && req.usuario.permisoId !== req.params.id) {
+    return res.status(403).json({ error: 'Este código no corresponde a este servicio' });
+  }
+
   const { rows } = await pool.query(
     `UPDATE permiso
      SET estado = 'ACTIVO',
          foto_evidencia_url = $1,
          geofencing_confirmado_at = now()
-     WHERE id = $2 AND estado = 'APROBADO'
-     RETURNING id, estado, geofencing_confirmado_at`,
-    [foto_evidencia_url, req.params.id]
+     WHERE id = $2 AND estado = 'APROBADO' AND ($3::uuid IS NULL OR usuario_id = $3)
+     RETURNING id, estado, geofencing_confirmado_at, comuna_id`,
+    [foto_evidencia_url, req.params.id, esCodigoChofer ? null : req.usuario.sub]
   );
 
   if (!rows[0]) {
     return res.status(409).json({ error: 'El permiso no está en estado APROBADO' });
   }
 
-  res.json(rows[0]);
+  await bitacoraService.registrarEvento({
+    permisoId: rows[0].id,
+    comunaId: rows[0].comuna_id,
+    tipoEvento: 'ACTIVACION_PERMISO',
+    actorId: esCodigoChofer ? null : req.usuario.sub,
+    detalle: esCodigoChofer ? { via: 'CODIGO_CHOFER' } : null,
+  });
+
+  res.json({ id: rows[0].id, estado: rows[0].estado, geofencing_confirmado_at: rows[0].geofencing_confirmado_at });
+}
+
+// PATCH /api/permisos/:id/rechazar — un operador municipal rechaza una
+// solicitud que TODAVÍA no fue aprobada (distinto de revocar, que es sobre
+// un permiso ya vigente). Sirve para que reportería distinga "nunca se
+// aprobó" de "se aprobó y después se retiró".
+async function rechazar(req, res) {
+  const { motivo } = req.body;
+
+  if (!motivo) {
+    return res.status(400).json({ error: 'motivo es obligatorio para rechazar una solicitud' });
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE permiso
+     SET estado = 'RECHAZADO'
+     WHERE id = $1 AND comuna_id = $2 AND estado = ANY($3::estado_permiso[])
+     RETURNING id, estado, comuna_id, usuario_id`,
+    [req.params.id, req.usuario.comuna_id, ESTADOS_RECHAZABLES]
+  );
+
+  if (!rows[0]) {
+    return res.status(409).json({ error: 'El permiso no existe o ya no puede rechazarse' });
+  }
+
+  await bitacoraService.registrarEvento({
+    permisoId: rows[0].id,
+    comunaId: rows[0].comuna_id,
+    tipoEvento: 'RECHAZO_PERMISO',
+    accion: 'RECHAZAR',
+    detalle: { motivo },
+    actorId: req.usuario.sub,
+  });
+
+  emitirEventoSolicitud(req, 'solicitud:rechazada', { ...rows[0], motivo });
+
+  res.json({ id: rows[0].id, estado: rows[0].estado });
+}
+
+// PATCH /api/permisos/:id/finalizar — el chofer cierra manualmente su
+// propio servicio antes de que se cumpla la ventana (o justo al terminar).
+async function finalizar(req, res) {
+  const { rows } = await pool.query(
+    `UPDATE permiso
+     SET estado = 'FINALIZADO'
+     WHERE id = $1 AND usuario_id = $2 AND estado = ANY($3::estado_permiso[])
+     RETURNING id, estado, comuna_id`,
+    [req.params.id, req.usuario.sub, ESTADOS_FINALIZABLES]
+  );
+
+  if (!rows[0]) {
+    return res.status(409).json({ error: 'El permiso no existe o no puede finalizarse' });
+  }
+
+  await bitacoraService.registrarEvento({
+    permisoId: rows[0].id,
+    comunaId: rows[0].comuna_id,
+    tipoEvento: 'FINALIZACION_PERMISO',
+    actorId: req.usuario.sub,
+  });
+
+  res.json({ id: rows[0].id, estado: rows[0].estado });
 }
 
 // GET /api/permisos/cola — cola de espera de la comuna del operador,
@@ -233,7 +523,7 @@ async function revocar(req, res) {
     `UPDATE permiso
      SET estado = 'REVOCADO', revocado_por = $1, revocado_at = now()
      WHERE id = $2 AND comuna_id = $3 AND estado = ANY($4::estado_permiso[])
-     RETURNING id, estado, revocado_por, revocado_at`,
+     RETURNING id, estado, revocado_por, revocado_at, comuna_id, usuario_id`,
     [req.usuario.sub, req.params.id, req.usuario.comuna_id, ESTADOS_REVOCABLES]
   );
 
@@ -251,6 +541,8 @@ async function revocar(req, res) {
     detalle: { motivo: motivo || null },
     actorId: req.usuario.sub,
   });
+
+  emitirEventoSolicitud(req, 'solicitud:revocada', { ...permiso, motivo: motivo || null });
 
   res.json(permiso);
 }
@@ -431,8 +723,11 @@ async function operativos(req, res) {
 module.exports = {
   crear,
   listar,
+  detalle,
   aprobar,
   activar,
+  rechazar,
+  finalizar,
   cola,
   revocar,
   asignarMovil,
@@ -440,4 +735,7 @@ module.exports = {
   validarPatente,
   operativo,
   operativos,
+  generarQrToken,
+  verificarQr,
+  documento,
 };

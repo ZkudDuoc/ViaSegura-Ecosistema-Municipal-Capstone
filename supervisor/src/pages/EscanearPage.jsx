@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
-import { listarPermisos } from "../services/permisoService";
+import { listarPermisos, verificarQr } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
-import { extraerIdPermiso, esCodigoCorto } from "../utils/qr";
+import { esCodigoCorto } from "../utils/qr";
 import "./paginas.css";
 import "./supervisor.css";
 
@@ -37,13 +37,30 @@ export default function EscanearPage() {
 
   const abrirPermiso = (id) => navigate(`/permisos/${id}`);
 
+  // Semana 5: el QR ya no trae el id crudo, trae un token firmado — hay que
+  // validarlo contra el Backend (firma + expiración) antes de mostrar nada.
   const alLeerQr = (texto) => {
     // La librería puede disparar varias lecturas antes de detenerse.
     if (!lectorRef.current) return;
     detener();
-    const id = extraerIdPermiso(texto);
-    if (id) abrirPermiso(id);
-    else setError("El código escaneado no es un QR de permiso de VíaSegura");
+    verificarToken(texto.trim());
+  };
+
+  const verificarToken = async (token) => {
+    setError(null);
+    setBuscando(true);
+    try {
+      const detalle = await verificarQr(token);
+      abrirPermiso(detalle.id);
+    } catch (err) {
+      setError(
+        err?.response?.status === 400
+          ? "El código escaneado no es un QR de permiso de VíaSegura válido (o ya expiró)"
+          : getApiErrorMessage(err)
+      );
+    } finally {
+      setBuscando(false);
+    }
   };
 
   const iniciar = async () => {
@@ -68,11 +85,6 @@ export default function EscanearPage() {
     e.preventDefault();
     setError(null);
 
-    const id = extraerIdPermiso(codigo);
-    if (id) {
-      abrirPermiso(id);
-      return;
-    }
     if (!esCodigoCorto(codigo)) {
       setError("Ingresa el código de 8 caracteres que aparece bajo el QR del chofer");
       return;
