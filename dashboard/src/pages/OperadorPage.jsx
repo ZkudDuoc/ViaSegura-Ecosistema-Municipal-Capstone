@@ -1,27 +1,19 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import PanicoAlertas from "../components/PanicoAlertas";
 import MapView from "../components/MapView";
-import { listarPendientes, aprobarPermiso, revocarPermiso, listarOperativos } from "../services/permisoService";
+import { listarPendientes, aprobarPermiso, listarOperativos } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
+import {
+  ESTADO_LABEL,
+  ESTADO_CLASS,
+  RIESGO_CLASS,
+  MOTIVO_COLA_LABEL,
+  ESTADOS_APROBABLES,
+  codigoCorto,
+} from "../utils/permisos";
 import "./OperadorPage.css";
-
-const RIESGO_CLASS = { Bajo: "riesgo-bajo", Medio: "riesgo-medio", Alto: "riesgo-alto" };
-const ESTADOS_REVOCABLES = ["APROBADO", "ACTIVO", "ACTIVO_PENDIENTE_EVIDENCIA", "EN_COLA_ESPERA"];
-
-const ESTADO_CLASS = {
-  PENDIENTE_CONFIRMACION_MUNICIPAL: "estado-pendiente",
-  APROBADO: "estado-aprobado",
-  EN_COLA_ESPERA: "estado-cola",
-  ACTIVO: "estado-activo",
-  ACTIVO_PENDIENTE_EVIDENCIA: "estado-activo",
-  FINALIZADO: "estado-finalizado",
-  EXPIRADO: "estado-expirado",
-  REVOCADO: "estado-revocado",
-};
-
-const MOTIVO_COLA_LABEL = {
-  RIESGO_ALTO_SIN_MOVIL: "Riesgo alto — falta asignar móvil de escolta",
-};
+import "./SolicitudDetallePage.css";
 
 const REFRESCO_OPERATIVOS_MS = 30_000;
 
@@ -52,25 +44,12 @@ export default function OperadorPage() {
     return () => clearInterval(id);
   }, []);
 
+  // Aprobación rápida sin comentario. Rechazar y revocar piden motivo: se hacen desde el detalle.
   const handleAprobar = async (id) => {
     setError(null);
     setProcesandoId(id);
     try {
       await aprobarPermiso(id);
-      await cargar();
-    } catch (err) {
-      setError(getApiErrorMessage(err));
-    } finally {
-      setProcesandoId(null);
-    }
-  };
-
-  const handleRevocar = async (id) => {
-    const motivo = window.prompt("Motivo de la revocación (opcional):") ?? "";
-    setError(null);
-    setProcesandoId(id);
-    try {
-      await revocarPermiso(id, motivo || undefined);
       await cargar();
     } catch (err) {
       setError(getApiErrorMessage(err));
@@ -109,14 +88,18 @@ export default function OperadorPage() {
             {solicitudes.length === 0 && (
               <tr>
                 <td colSpan={5} className="page-subtitle">
-                  No hay solicitudes pendientes
+                  No hay solicitudes
                 </td>
               </tr>
             )}
             {solicitudes.map((s) => (
               <tr key={s.id}>
-                <td>{s.id}</td>
-                <td>{s.nombre_empresa_ejecutora ?? s.empresa_ejecutora_id ?? "—"}</td>
+                <td>
+                  <Link to={`/solicitudes/${s.id}`} className="link-detalle">
+                    {codigoCorto(s.id)}
+                  </Link>
+                </td>
+                <td>{s.nombre_empresa_ejecutora ?? "—"}</td>
                 <td>
                   <span className={`riesgo-pill ${RIESGO_CLASS[s.riesgo] ?? "riesgo-medio"}`}>
                     {s.riesgo ?? "Sin evaluar"}
@@ -124,17 +107,15 @@ export default function OperadorPage() {
                 </td>
                 <td>
                   <span className={`estado-pill ${ESTADO_CLASS[s.estado] ?? ""}`}>
-                    {s.estado.replaceAll("_", " ")}
+                    {ESTADO_LABEL[s.estado] ?? s.estado}
                   </span>
                   {s.estado === "EN_COLA_ESPERA" && s.motivo_cola && (
-                    <div className="motivo-cola-hint">
-                      {MOTIVO_COLA_LABEL[s.motivo_cola] ?? s.motivo_cola}
-                    </div>
+                    <div className="motivo-cola-hint">{MOTIVO_COLA_LABEL[s.motivo_cola] ?? s.motivo_cola}</div>
                   )}
                 </td>
                 <td>
-                  {s.estado === "PENDIENTE_CONFIRMACION_MUNICIPAL" ? (
-                    <div className="acciones-cell">
+                  <div className="acciones-cell">
+                    {ESTADOS_APROBABLES.includes(s.estado) && (
                       <button
                         className="btn-secondary"
                         onClick={() => handleAprobar(s.id)}
@@ -142,25 +123,11 @@ export default function OperadorPage() {
                       >
                         {procesandoId === s.id ? "Aprobando…" : "Aprobar"}
                       </button>
-                      <button
-                        className="btn-danger"
-                        onClick={() => handleRevocar(s.id)}
-                        disabled={procesandoId === s.id}
-                      >
-                        Revocar
-                      </button>
-                    </div>
-                  ) : ESTADOS_REVOCABLES.includes(s.estado) ? (
-                    <button
-                      className="btn-danger"
-                      onClick={() => handleRevocar(s.id)}
-                      disabled={procesandoId === s.id}
-                    >
-                      {procesandoId === s.id ? "Revocando…" : "Revocar"}
-                    </button>
-                  ) : (
-                    <span className="page-subtitle">—</span>
-                  )}
+                    )}
+                    <Link to={`/solicitudes/${s.id}`} className="btn-secondary">
+                      Ver detalle
+                    </Link>
+                  </div>
                 </td>
               </tr>
             ))}

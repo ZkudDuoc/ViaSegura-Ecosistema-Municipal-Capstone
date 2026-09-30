@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import DashboardLayout from "./layouts/DashboardLayout";
 import LoginPage from "./pages/LoginPage";
 import OperadorPage from "./pages/OperadorPage";
+import SolicitudDetallePage from "./pages/SolicitudDetallePage";
 import SupervisorPage from "./pages/SupervisorPage";
 
 // Ruta protegida: mientras se valida el token guardado no se muestra nada;
@@ -30,6 +31,7 @@ export default function App() {
         >
           <Route index element={<Navigate to="/operador" replace />} />
           <Route path="/operador" element={<OperadorPage />} />
+          <Route path="/solicitudes/:id" element={<SolicitudDetallePage />} />
           <Route path="/reporteria" element={<SupervisorPage />} />
           <Route path="/supervisor" element={<Navigate to="/reporteria" replace />} />
         </Route>

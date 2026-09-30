@@ -12,8 +12,10 @@ export function obtenerPermiso(id) {
   return api.get(`/permisos/${id}`).then((res) => res.data);
 }
 
-export function aprobarPermiso(id) {
-  return api.patch(`/permisos/${id}/aprobar`).then((res) => res.data);
+// comentario es opcional. PENDIENTE (Backend): el endpoint todavía no lo
+// guarda; se envía igual para que quede en la bitácora apenas lo soporte.
+export function aprobarPermiso(id, comentario) {
+  return api.patch(`/permisos/${id}/aprobar`, { comentario }).then((res) => res.data);
 }
 
 // Rechazo (Semana 5): distinto de revocar — es para una solicitud que TODAVÍA
