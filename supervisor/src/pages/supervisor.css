@@ -253,3 +253,44 @@ p.checklist-referencia {
 .btn-suspender {
   background: #7f1d1d;
 }
+.recientes {
+  margin-top: 16px;
+}
+
+.recientes-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reciente-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.reciente-codigo {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.reciente-info {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reciente-tiempo {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

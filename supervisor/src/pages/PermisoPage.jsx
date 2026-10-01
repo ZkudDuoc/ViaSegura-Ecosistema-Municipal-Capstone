@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { obtenerPermiso, validarPatente, obtenerOperativo, listarInspecciones } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
+import { guardarReciente } from "../utils/recientes";
 import {
   ESTADO_LABEL,
   ESTADO_CLASE,
@@ -56,10 +57,11 @@ export default function PermisoPage() {
     obtenerPermiso(id)
       .then((encontrado) => {
         setPermiso(encontrado);
+        guardarReciente({ id: encontrado.id, rut: encontrado.rut_ejecutor, empresa: encontrado.nombre_empresa_ejecutora });
         if (encontrado?.geofencing_confirmado_at) {
-          obtenerOperativo(id).then(setOperativo).catch(() => {});
+          obtenerOperativo(id).then(setOperativo).catch(() => { });
         }
-        listarInspecciones(id).then(setInspecciones).catch(() => {});
+        listarInspecciones(id).then(setInspecciones).catch(() => { });
       })
       .catch((err) => {
         if (err?.response?.status === 404 || err?.response?.status === 403) setPermiso(null);

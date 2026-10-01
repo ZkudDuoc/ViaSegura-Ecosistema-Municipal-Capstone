@@ -41,7 +41,7 @@ export default function NuevaMultaPage() {
         setPermiso(encontrado);
         if (encontrado) setRutInfractor(encontrado.rut_ejecutor);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [permisoId]);
 
   const handleFoto = async (e) => {
@@ -88,7 +88,12 @@ export default function NuevaMultaPage() {
         <p className="texto-exito">
           {tipo} · RUT {rutInfractor}
         </p>
-        <Link to="/multas" className="btn-primary btn-accion">
+        {permiso && (
+          <Link to={`/permisos/${permiso.id}`} className="btn-primary btn-accion">
+            Volver al permiso
+          </Link>
+        )}
+        <Link to="/multas" className="btn-secondary btn-accion">
           Ver multas
         </Link>
         <Link to="/" className="btn-secondary btn-accion">
