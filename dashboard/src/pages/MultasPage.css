@@ -1,0 +1,113 @@
+.multas-resumen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.multas-cifra {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.multas-cifra-valor {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.multas-cifra-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.fila-clicable {
+  cursor: pointer;
+}
+
+.fila-clicable:hover td {
+  background: var(--color-bg);
+}
+
+.multa-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  text-align: left;
+  cursor: pointer;
+}
+
+.multa-link:hover {
+  text-decoration: underline;
+}
+
+.modal-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal-multa {
+  width: 100%;
+  max-width: 820px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+
+.modal-encabezado {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.modal-encabezado h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.modal-cerrar {
+  border: none;
+  background: none;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+
+.multa-observacion {
+  margin: 0;
+  font-size: 14px;
+  background: var(--color-bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.multa-grid {
+  margin: 8px 0 0;
+}
+
+.multa-mapa-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
