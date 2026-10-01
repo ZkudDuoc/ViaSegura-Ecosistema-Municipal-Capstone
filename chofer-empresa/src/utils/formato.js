@@ -7,6 +7,8 @@ export const ESTADO_LABEL = {
   FINALIZADO: "Finalizada",
   EXPIRADO: "Expirada",
   REVOCADO: "Revocada",
+  RECHAZADO: "Rechazada",
+  SUSPENDIDO: "Suspendida",
 };
 
 export const ESTADO_CLASE = {
@@ -18,6 +20,8 @@ export const ESTADO_CLASE = {
   FINALIZADO: "badge-neutro",
   EXPIRADO: "badge-error",
   REVOCADO: "badge-error",
+  RECHAZADO: "badge-error",
+  SUSPENDIDO: "badge-error",
 };
 
 export function formatearFecha(iso) {

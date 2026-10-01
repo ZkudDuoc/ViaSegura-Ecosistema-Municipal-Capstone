@@ -1,0 +1,241 @@
+.chofer-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.chofer-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.chofer-header-acciones {
+  display: flex;
+  gap: 8px;
+}
+
+.chofer-contenido {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.chofer-mitad {
+  margin-bottom: 24px;
+}
+
+.chofer-mitad h1 {
+  margin-bottom: 12px;
+}
+
+.chofer-aviso {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+}
+
+.chofer-aviso.ok {
+  background: #e1f5ea;
+  color: #13774a;
+  border: 1px solid var(--color-success);
+}
+
+.chofer-aviso.error {
+  background: #fde4e2;
+  color: #8c1d15;
+  border: 1px solid var(--color-danger);
+}
+
+.chofer-aviso button {
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: inherit;
+  cursor: pointer;
+}
+
+.servicio-actual {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.servicio-resumen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+.servicio-resumen-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+}
+
+.servicio-toque {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.servicio-subtitulo {
+  font-size: 14px;
+  margin: 16px 0 8px;
+}
+
+.servicio-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.servicio-qr svg {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  background: #fff;
+}
+
+.qr-codigo-corto {
+  margin: 0;
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.servicio-acciones {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-accion-chofer {
+  display: block;
+  text-align: center;
+}
+
+.chofer-panico {
+  margin-top: 16px;
+}
+
+.panico-chofer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.boton-sos-chofer {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: none;
+  overflow: hidden;
+  background: var(--color-danger);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 0 0 8px rgba(228, 72, 59, 0.15);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.boton-sos-chofer:disabled {
+  opacity: 0.6;
+}
+
+/* Relleno que sube durante los 2 s que hay que mantener presionado. */
+.sos-relleno {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.boton-sos-chofer.presionando .sos-relleno {
+  height: 100%;
+  transition: height 2s linear;
+}
+
+.sos-texto {
+  position: relative;
+}
+
+.panico-ayuda {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.btn-llamar {
+  display: block;
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  background: #7f1d1d;
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+}
+
+.bandeja-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.mini-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mini-servicio {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.mini-servicio > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}

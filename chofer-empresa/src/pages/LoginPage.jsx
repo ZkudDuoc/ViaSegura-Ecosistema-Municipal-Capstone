@@ -40,7 +40,7 @@ export default function LoginPage() {
     e.preventDefault();
     login(email, password)
       .then(() => navigate(destino, { replace: true }))
-      .catch(() => {});
+      .catch(() => { });
   };
 
   return (
@@ -90,12 +90,15 @@ export default function LoginPage() {
         <button type="submit" className="btn-primary" disabled={loading}>
           {loading ? "Ingresando…" : "Iniciar sesión"}
         </button>
-                <p className="login-alternativa">
+        <p className="login-alternativa">
           ¿No tienes cuenta?{" "}
           <Link to="/registro" className="enlace">
             Crear cuenta
           </Link>
         </p>
+        <Link to="/chofer" className="btn-secondary btn-accion login-chofer">
+          ¿Eres chofer? Ingresa con tu código
+        </Link>
       </form>
     </div>
   );
