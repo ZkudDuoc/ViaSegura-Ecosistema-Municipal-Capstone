@@ -15,8 +15,15 @@ posición GPS en el frontend; el resultado esperado es:
 |---|---|---|---|---|
 | Sin riesgo | -33.4105, -70.6905 | 0.0 | **bajo** | 0 |
 | Riesgo bajo | -33.421799, -70.695054 | 32.97 | **bajo** | 1 (leve) |
-| Riesgo medio | -33.403018, -70.643878 | 55.07 | **medio** | 1 (media) |
+| Riesgo medio | -33.403018, -70.643878 | **57.53** | **medio** | 1 (media) |
 | Riesgo alto | -33.460763, -70.667891 | 86.47 | **alto** | 2 |
+
+El de "riesgo medio" cae en Recoleta, una calle real de SECTRA con factor
+de criminalidad real (CEAD) sobre el promedio nacional — por eso
+`comuna_detectada: "RECOLETA"` y `fuente_congestion: "real (SECTRA, ...)"`
+en la respuesta, en vez de la estimación por densidad poblacional. Es un
+buen punto para mostrar en vivo: el mismo endpoint usa dato real cuando
+puede.
 
 Si la demo es otro día, la época del año cambia qué incidentes entran en la
 ventana (±45 días). Regenera los escenarios para esa fecha:
@@ -51,8 +58,17 @@ Imprime, por nivel, el punto GPS y el cuerpo JSON listo para pegar.
    alrededor; medimos que sin margen solo el 0.4% de las solicitudes
    tocaban algún incidente, y con 75 m el 8.8%."
 4. "Responde en ~15 ms, así que 'iniciar trabajo' no se siente lento."
-5. Mostrar los 3 niveles con los puntos de la tabla y `GET /zonas-rojas`
-   (27 zonas normalizadas por densidad poblacional) para el mapa.
+5. "Cuando la zona cae cerca de una calle real, no usamos solo el dataset
+   simulado: la congestión viene del flujo vehicular real de SECTRA, y el
+   riesgo se ajusta por la tasa de criminalidad real de esa comuna, con
+   datos oficiales del CEAD — se ve en `comuna_detectada` y
+   `fuente_congestion` en la respuesta." (ese es el caso "riesgo medio"
+   de la tabla)
+6. Mostrar `GET /zonas-rojas` (27 zonas por densidad poblacional) y
+   `GET /calles-riesgo` (7.459 calles reales, con riesgo y congestión
+   real por tramo) para el mapa — y `POST /ranking-inspecciones` si da
+   tiempo, para mostrar que el Supervisor siempre visita primero una
+   emergencia activa.
 
 ## 4. Si algo falla en vivo
 

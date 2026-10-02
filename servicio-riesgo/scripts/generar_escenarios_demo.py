@@ -2,9 +2,11 @@
 
 Recorre los incidentes del dataset y, para cada uno, arma la ruta que
 generaría el frontend al presionar "iniciar trabajo" (camión centrado en
-ese punto + ~5.5 m a cada lado), la evalúa con el mismo `calcular_score`
-que usa el servicio, y se queda con el primer caso de cada nivel. Es
-determinista: mismo dataset + misma fecha => mismos escenarios.
+ese punto + ~5.5 m a cada lado), la evalúa con
+evaluar_score_con_datos_reales() — el mismo flujo que usa POST /score en
+producción (incluye el cruce con calles reales de SECTRA/CEAD, Semana 5)
+— y se queda con el primer caso de cada nivel. Es determinista: mismo
+dataset + misma fecha => mismos escenarios.
 
 Sirve para dos cosas: (1) la guía de demo (DEMO.md) — coordenadas GPS que
 Agustín puede simular en el frontend — y (2) los tests E2E, que fijan los
@@ -27,9 +29,10 @@ sys.path.insert(0, str(RAIZ))
 from shapely.geometry import shape
 
 from app import config
+from app.data.calles import cargar_calles, generar_calles
 from app.data.censo import cargar_censo, generar_censo_simulado
 from app.data.incidents import as_geodataframe, cargar_incidentes, generar_incidentes_simulados
-from app.services import scoring
+from app.services.calles_riesgo import evaluar_score_con_datos_reales
 from tests.poligonos_ruta import poligono_desde_ruta_recta
 
 LARGO_M = 150
@@ -39,14 +42,18 @@ RUMBO = 90  # este-oeste
 def buscar_escenarios(fecha: date):
     generar_incidentes_simulados(config.INCIDENTS_DATASET_PATH)
     generar_censo_simulado(config.INE_CENSUS_DATA_PATH)
+    generar_calles(config.CALLES_DATASET_PATH)
     incidentes = cargar_incidentes(config.INCIDENTS_DATASET_PATH)
     gdf_incidentes = as_geodataframe(incidentes)
     gdf_censo = cargar_censo(config.INE_CENSUS_DATA_PATH)
+    gdf_calles = cargar_calles(config.CALLES_DATASET_PATH)
 
     encontrados = {}
     for fila in incidentes.itertuples():
         poligono = poligono_desde_ruta_recta(fila.latitud, fila.longitud, LARGO_M, RUMBO)
-        r = scoring.calcular_score(gdf_incidentes, gdf_censo, shape(poligono), fecha)
+        r = evaluar_score_con_datos_reales(
+            gdf_incidentes, gdf_censo, gdf_calles, shape(poligono), fecha
+        )
         n = r["n_incidentes_considerados"]
 
         if r["nivel"] == "alto" and n >= 2:
@@ -67,7 +74,7 @@ def buscar_escenarios(fecha: date):
     # Sin datos: rincón del bbox sin incidentes cerca (0 en la ventana).
     lat, lon = -33.4105, -70.6905
     poligono = poligono_desde_ruta_recta(lat, lon, LARGO_M, RUMBO)
-    r = scoring.calcular_score(gdf_incidentes, gdf_censo, shape(poligono), fecha)
+    r = evaluar_score_con_datos_reales(gdf_incidentes, gdf_censo, gdf_calles, shape(poligono), fecha)
     encontrados["sin_riesgo"] = {"lat": lat, "lon": lon, "poligono": poligono, "resultado": r}
     return encontrados
 
@@ -84,7 +91,8 @@ def main():
         print(
             f"## {nombre}: centro GPS (lat {e['lat']}, lon {e['lon']}) -> "
             f"risk_score={r['risk_score']} congestion={r['congestion_score']} "
-            f"nivel={r['nivel']} incidentes={r['n_incidentes_considerados']}"
+            f"nivel={r['nivel']} incidentes={r['n_incidentes_considerados']} "
+            f"comuna={r['comuna_detectada']} fuente_congestion={r['fuente_congestion']}"
         )
         cuerpo = {"poligono": e["poligono"], "fecha": fecha.isoformat(), "tipo_actividad": "PROGRAMADA"}
         print(json.dumps(cuerpo))

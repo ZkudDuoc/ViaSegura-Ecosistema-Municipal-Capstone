@@ -1,4 +1,5 @@
 from app import config
+from tests.poligonos_ruta import poligono_desde_ruta_recta
 
 # Polígono dentro del bbox de datos simulados (LAT_RANGE/LON_RANGE en
 # app/data/incidents.py y censo.py), donde sabemos por inspección manual
@@ -158,3 +159,30 @@ def test_score_rechaza_payload_incompleto(client):
     response = client.post("/score", json={"fecha": "2025-05-15"})
 
     assert response.status_code == 422
+
+
+def test_score_usa_criminalidad_real_cuando_hay_calle_real_cerca(client):
+    """Recoleta tiene factor real capturado (CEAD, sobre el promedio
+    nacional) -- /score debe detectarlo igual que /ranking-inspecciones."""
+    poligono = poligono_desde_ruta_recta(-33.403018, -70.643878, 150, 90)
+    response = client.post(
+        "/score",
+        json={"poligono": poligono, "fecha": "2026-10-15", "tipo_actividad": "PROGRAMADA"},
+    )
+
+    body = response.json()
+    assert body["comuna_detectada"] == "RECOLETA"
+    assert body["fuente_congestion"].startswith("real")
+    assert "Recoleta" in body["explicacion"]["resumen"]
+
+
+def test_score_sin_calle_real_cerca_usa_estimacion(client):
+    poligono = poligono_desde_ruta_recta(-33.460763, -70.667891, 150, 90)
+    response = client.post(
+        "/score",
+        json={"poligono": poligono, "fecha": "2026-10-15", "tipo_actividad": "PROGRAMADA"},
+    )
+
+    body = response.json()
+    assert body["comuna_detectada"] is None
+    assert body["fuente_congestion"] == "estimada (densidad poblacional simulada)"
