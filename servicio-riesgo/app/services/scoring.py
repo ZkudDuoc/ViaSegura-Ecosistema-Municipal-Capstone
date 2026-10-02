@@ -1,4 +1,4 @@
-"""Score de riesgo espacio-temporal (Semana 2, calibrado en Semanas 3 y 4).
+"""Score de riesgo espacio-temporal (Semana 2, calibrado en Semanas 3-5).
 
 Cruza el polígono de una solicitud contra los incidentes históricos
 dentro de esa zona y ventana de tiempo, y contra la densidad poblacional
@@ -54,6 +54,18 @@ NIVEL_UMBRAL_MEDIO_ALTO = 67
 # Configurable sin tocar código: variable de entorno BUFFER_BUSQUEDA_M.
 BUFFER_BUSQUEDA_M = config.BUFFER_BUSQUEDA_M
 
+# Ponderación nocturna (Semana 5, Anexo B): "si la ventana cae de noche, el
+# peso debe ser mayor". El dataset de incidentes no trae hora (solo fecha),
+# así que esto no reclasifica incidentes históricos por hora — pondera la
+# ventana de LA SOLICITUD: si el permiso es para trabajar de noche, se
+# multiplica la suma de riesgo por PESO_NOCTURNO antes de aplicar la
+# saturación. El rango de "noche" y el multiplicador son un supuesto
+# documentado (el profesor no dio un criterio), configurables sin tocar
+# código — ver app/config.py.
+NOCHE_HORA_INICIO = config.NOCHE_HORA_INICIO
+NOCHE_HORA_FIN = config.NOCHE_HORA_FIN
+PESO_NOCTURNO = config.PESO_NOCTURNO
+
 
 def _distancia_circular_dias(fecha_a: date, fecha_b: date) -> int:
     """Distancia en días entre dos fechas ignorando el año (circular sobre
@@ -63,6 +75,14 @@ def _distancia_circular_dias(fecha_a: date, fecha_b: date) -> int:
     dia_anio_b = fecha_b.timetuple().tm_yday
     diff_days = abs(dia_anio_a - dia_anio_b)
     return min(diff_days, 365 - diff_days)
+
+
+def _es_horario_nocturno(hora: int) -> bool:
+    """NOCHE_HORA_INICIO puede ser mayor que NOCHE_HORA_FIN (ej. 20 a 6,
+    cruza medianoche) — se maneja como un rango circular de 24 horas."""
+    if NOCHE_HORA_INICIO > NOCHE_HORA_FIN:
+        return hora >= NOCHE_HORA_INICIO or hora < NOCHE_HORA_FIN
+    return NOCHE_HORA_INICIO <= hora < NOCHE_HORA_FIN
 
 
 def _expandir_poligono(poligono: BaseGeometry, buffer_m: float) -> BaseGeometry:
@@ -92,6 +112,61 @@ def _nivel_desde_score(risk_score: float) -> str:
     return "alto"
 
 
+def _construir_explicacion(
+    incidentes_en_ventana, es_nocturno: bool, comuna: str | None, factor_criminalidad: float
+) -> dict:
+    """Arma el campo `explicacion` de la respuesta: un resumen en texto
+    simple (para un operador municipal no técnico) más el detalle
+    estructurado que el dashboard puede listar."""
+    n = len(incidentes_en_ventana)
+    incidentes_considerados = [
+        {
+            "tipo_incidente": fila.tipo_incidente,
+            "gravedad": str(fila.gravedad),
+            "fecha": fila.fecha.date(),
+        }
+        for fila in incidentes_en_ventana.itertuples()
+    ]
+
+    if n == 0:
+        resumen = (
+            f"No se encontraron incidentes registrados cerca de esta zona "
+            f"en los últimos {VENTANA_DIAS} días (misma época del año)."
+        )
+    else:
+        conteo_tipos = incidentes_en_ventana["tipo_incidente"].value_counts()
+        detalle_tipos = ", ".join(
+            f"{cantidad} de {tipo.replace('_', ' ')}"
+            for tipo, cantidad in conteo_tipos.items()
+        )
+        resumen = (
+            f"Se encontraron {n} incidente(s) cercano(s) en los últimos "
+            f"{VENTANA_DIAS} días (misma época del año): {detalle_tipos}."
+        )
+
+    if es_nocturno:
+        resumen += (
+            f" La ventana solicitada es en horario nocturno "
+            f"({NOCHE_HORA_INICIO}:00-{NOCHE_HORA_FIN}:00), por lo que el "
+            f"riesgo se incrementó un {round((PESO_NOCTURNO - 1) * 100)}%."
+        )
+
+    if comuna and factor_criminalidad != 1.0:
+        direccion = "más" if factor_criminalidad > 1 else "menos"
+        resumen += (
+            f" Esta zona está en la comuna de {comuna.title()}, que según "
+            f"cifras oficiales del CEAD registra {direccion} delitos que el "
+            f"promedio nacional (factor {factor_criminalidad})."
+        )
+
+    return {
+        "resumen": resumen,
+        "incidentes_considerados": incidentes_considerados,
+        "franja_horaria": "noche" if es_nocturno else "dia",
+        "peso_nocturno_aplicado": es_nocturno,
+    }
+
+
 def calcular_score(
     gdf_incidentes: gpd.GeoDataFrame,
     gdf_censo: gpd.GeoDataFrame,
@@ -99,7 +174,18 @@ def calcular_score(
     fecha: date,
     ventana_dias: int = VENTANA_DIAS,
     buffer_m: float | None = None,
+    hora_inicio: int = 12,
+    factor_criminalidad: float = 1.0,
+    comuna: str | None = None,
 ) -> dict:
+    """`factor_criminalidad`: multiplicador real por comuna (CEAD, ver
+    app/data/criminalidad_real.py), 1.0 = sin ajuste (neutro). El censo
+    simulado no tiene comuna real asociada a sus manzanas, así que esta
+    función no la resuelve sola — quien llama (main.py, para /score y
+    /ranking-inspecciones) la busca con
+    calles_riesgo.datos_reales_cerca() y se la pasa ya calculada.
+    `comuna`: solo para el texto de `explicacion` (no afecta el cálculo,
+    eso ya lo hizo `factor_criminalidad`)."""
     buffer_aplicado_m = float(BUFFER_BUSQUEDA_M if buffer_m is None else buffer_m)
     poligono = _expandir_poligono(poligono, buffer_aplicado_m)
 
@@ -121,6 +207,11 @@ def calcular_score(
     )
     suma_ponderada = float(pesos.sum())
 
+    es_nocturno = _es_horario_nocturno(hora_inicio)
+    if es_nocturno:
+        suma_ponderada *= PESO_NOCTURNO
+    suma_ponderada *= factor_criminalidad
+
     risk_score = round(100 * (1 - math.exp(-suma_ponderada / RISK_TAU)), 2)
 
     manzanas_en_zona = gdf_censo[gdf_censo.intersects(poligono)]
@@ -137,4 +228,7 @@ def calcular_score(
         "nivel": _nivel_desde_score(risk_score),
         "n_incidentes_considerados": int(len(incidentes_en_ventana)),
         "buffer_aplicado_m": buffer_aplicado_m,
+        "explicacion": _construir_explicacion(
+            incidentes_en_ventana, es_nocturno, comuna, factor_criminalidad
+        ),
     }

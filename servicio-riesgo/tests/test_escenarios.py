@@ -8,6 +8,15 @@ fijados a propósito: si alguien recalibra RISK_TAU / umbrales / buffer o
 regenera el dataset y un nivel cambia, este test falla y obliga a
 revisar el efecto (no son coordenadas mágicas, son regresión de
 calibración).
+
+"medio" sube de 55.07 a 57.53 desde que /score empezó a usar el factor
+de criminalidad real por comuna cuando hay una calle SECTRA cerca (ver
+app/services/calles_riesgo.py:datos_reales_cerca): ese punto cae en
+Recoleta, factor real 1.0704 (sobre el promedio nacional). Los otros 3
+no se mueven: "alto" no tiene ninguna calle real cerca, "bajo" cae en
+Quinta Normal (sin dato de CEAD capturado, factor neutro 1.0), y
+"sin_riesgo" tiene 0 incidentes así que el factor no tiene nada que
+multiplicar.
 """
 
 import pytest
@@ -21,7 +30,7 @@ RUMBO = 90
 # nombre: (lat, lon, nivel esperado, incidentes esperados, risk_score esperado)
 ESCENARIOS = {
     "bajo": (-33.421799, -70.695054, "bajo", 1, 32.97),
-    "medio": (-33.403018, -70.643878, "medio", 1, 55.07),
+    "medio": (-33.403018, -70.643878, "medio", 1, 57.53),
     "alto": (-33.460763, -70.667891, "alto", 2, 86.47),
     "sin_riesgo": (-33.4105, -70.6905, "bajo", 0, 0.0),
 }

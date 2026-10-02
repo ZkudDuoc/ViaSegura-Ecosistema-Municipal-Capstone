@@ -50,16 +50,25 @@ curl -X POST http://localhost:8000/score \
       "coordinates": [[[-70.665, -33.465], [-70.650, -33.465], [-70.650, -33.450], [-70.665, -33.450], [-70.665, -33.465]]]
     },
     "fecha": "2025-05-15",
-    "tipo_actividad": "PROGRAMADA"
+    "tipo_actividad": "PROGRAMADA",
+    "hora_inicio": 23
   }'
 ```
 
 ```json
-{"risk_score":90.93,"congestion_score":6.53,"nivel":"alto","n_incidentes_considerados":3,"buffer_aplicado_m":75.0,"tipo_actividad":"PROGRAMADA"}
+{"risk_score":98.95,"congestion_score":9.81,"nivel":"alto","n_incidentes_considerados":3,"buffer_aplicado_m":75.0,"explicacion":{"resumen":"Se encontraron 3 incidente(s) cercano(s) en los últimos 45 días (misma época del año): 1 de hurto, 1 de robo vehiculo, 1 de lesiones. La ventana solicitada es en horario nocturno (20:00-6:00), por lo que el riesgo se incrementó un 30%. Esta zona está en la comuna de Santiago, que según cifras oficiales del CEAD registra más delitos que el promedio nacional (factor 1.4597).","incidentes_considerados":[{"tipo_incidente":"hurto","gravedad":"alta","fecha":"2025-05-16"},{"tipo_incidente":"robo_vehiculo","gravedad":"media","fecha":"2025-06-08"},{"tipo_incidente":"lesiones","gravedad":"baja","fecha":"2025-06-09"}],"franja_horaria":"noche","peso_nocturno_aplicado":true},"comuna_detectada":"SANTIAGO","fuente_congestion":"real (SECTRA, 296 calles cercanas)","tipo_actividad":"PROGRAMADA"}
 ```
 
 `tipo_actividad` acepta exactamente los dos valores del enum real del
-Backend: `"PROGRAMADA"` o `"EMERGENCIA"`.
+Backend: `"PROGRAMADA"` o `"EMERGENCIA"`. `hora_inicio` es opcional (0-23,
+default 12 = mediodía, sin ponderación nocturna) — ver Semana 5.
+
+`comuna_detectada` y `fuente_congestion` (abajo): si el polígono cae cerca
+de una calle real de SECTRA, `congestion_score` y el riesgo usan dato real
+(flujo vehicular + factor de criminalidad del CEAD, ver sección 4.1 de
+Semana 5) en vez del proxy de densidad poblacional — mismo criterio que
+`/ranking-inspecciones`, para que ambos den el mismo número ante la misma
+obra.
 
 ### Ejemplo — `GET /zonas-rojas`
 
@@ -179,5 +188,154 @@ python scripts/smoke_test.py                       # local, debe dar TODO OK
 python scripts/generar_escenarios_demo.py --fecha 2026-10-15
 python scripts/probar_poligonos_ruta.py            # experimento del bug
 ```
+
+## Semana 5 — Score explicado, riesgo por calle y datos reales (Anexo B)
+
+Alcance definido en el Anexo B del plan tras la retroalimentación del
+profesor. Resumen de qué se hizo y por qué:
+
+**1. Score explicado.** `POST /score` ahora devuelve `explicacion`: un
+`resumen` en texto simple (para un operador municipal no técnico) más el
+detalle de qué incidentes contaron (tipo, gravedad, fecha) y en qué
+franja horaria. Ejemplo arriba. Tests en `tests/test_explicacion.py`.
+
+**2. Ponderación nocturna.** El dataset de incidentes no trae hora (solo
+fecha), así que esto no reclasifica incidentes históricos por hora:
+pondera la ventana de **la solicitud**. Si `hora_inicio` cae en horario
+nocturno, se multiplica la suma de riesgo por `PESO_NOCTURNO` antes de la
+saturación. El profesor no dio un criterio de "noche", así que quedó como
+supuesto documentado y configurable por variable de entorno:
+
+| Variable | Default | Qué es |
+|---|---|---|
+| `NOCHE_HORA_INICIO` / `NOCHE_HORA_FIN` | 20 / 6 | Rango horario considerado nocturno (circular, cruza medianoche) |
+| `PESO_NOCTURNO` | 1.3 | Multiplicador sobre la suma de riesgo (no sobre el score final) |
+
+Ejemplo real verificado (mismo polígono y fecha, solo cambia la hora):
+`risk_score` 32.97 (bajo) de día → **40.55 (medio)** de noche — el peso
+nocturno puede cambiar la decisión del operador, no solo mover el número.
+Tests en `tests/test_peso_nocturno.py`. `hora_inicio` es opcional con
+default 12 (mediodía) para no romper al Backend mientras Joshua no la
+mande — **hoy `riskService.js` trunca `ventana_inicio` a solo la fecha**
+(`.slice(0, 10)`), así que esta ponderación queda inactiva hasta que el
+Backend empiece a mandar la hora real.
+
+**3. Validación del polígono automático (tamaño real: 18×8 m, no los 20 m
+usados como ejemplo en Semana 4).** `scripts/validar_poligono_automatico.py`
+prueba 4 casos reales con y sin `BUFFER_BUSQUEDA_M`:
+
+| Caso | Sin buffer | Con buffer (75 m) |
+|---|---|---|
+| (a) Sin incidentes ni manzanas cerca | risk 0.0, congestión 0.0 | igual |
+| (b) Borde exacto de una manzana censal | risk 0.0, congestión 1.02 | igual (ya tocaba la manzana sin margen) |
+| (c) Centro de la manzana más densa del dataset | risk 0.0, congestión 100.0 | igual (no había ningún incidente a menos de 75 m de ese punto) |
+| (d) A 50 m de un incidente real (no encima) | risk 0.0, **bajo** | **risk 55.07, medio** |
+
+Conclusión: con el tamaño real (18×8 m) el buffer no cambia el resultado
+cuando ya se está exactamente sobre la manzana o lejos de todo — su
+efecto real es el caso (d), que es el más representativo de una solicitud
+real (el camión rara vez para exactamente sobre el punto de un incidente
+pasado, pero sí cerca). Confirma que `BUFFER_BUSQUEDA_M=75` sigue siendo
+necesario con el tamaño real del polígono.
+
+**4. Riesgo y congestión por calle real — `GET /calles-riesgo` (nuevo).**
+Pedía el equipo poder "pintar las calles en rojo" en el mapa. Se evaluaron
+3 diseños (grilla, por comuna, por calle real) y se eligió **por calle
+real**, reutilizando el flujo vehicular verídico de SECTRA (ver
+`docs/investigacion-datos-riesgo-congestion.md`) tanto para la geometría de
+las calles como para la congestión — y el dataset de incidentes simulado
+para el riesgo de cada tramo:
+
+```bash
+curl http://localhost:8000/calles-riesgo
+curl "http://localhost:8000/calles-riesgo?comuna=PROVIDENCIA"
+```
+
+Devuelve `{ total_calles, fuente_datos, calles: [...] }`, cada calle con
+`nombre`, `comuna`, `risk_score`, `congestion_score` (del flujo vehicular
+real, no de densidad poblacional), `flujo_vehicular_hora`,
+`n_incidentes`, `factor_criminalidad_real` y `geometry_geojson`
+(LineString) para pintarla en el mapa. Se calcula una vez al levantar el
+servicio sobre **7.459 tramos reales** dentro del área del proyecto
+(Santiago Centro, Providencia, Ñuñoa, Vitacura y alrededores) — si SECTRA
+no responde al generar el dataset, cae a una red de calles simulada
+equivalente (`app/data/calles.py`), mismo patrón de respaldo que ya usan
+incidentes y censo.
+
+**4.1 Integración de criminalidad real por comuna.** Cada tramo de SECTRA
+ya trae su `comuna` real, así que el riesgo simulado de cada calle se
+escala por el **factor de criminalidad real** de esa comuna —capturado a
+mano del CEAD (`cead.minsegpublica.gob.cl`, sin API, ver
+`app/data/criminalidad_real.py`), tasa cada 100.000 habitantes de las 7
+familias de delito, 2025, relativa al promedio nacional (9.789,3):
+
+| Comuna | Tasa real 2025 | Factor (vs. promedio nacional) |
+|---|---|---|
+| Providencia | 16.260,7 | 1,66 |
+| **Santiago** (comuna de referencia — mayor volumen: 78.902 casos en 2025, ~4% del total país) | 14.289,9 | **1,46** |
+| Estación Central | 11.324,2 | 1,16 |
+| Recoleta | 10.478,5 | 1,07 |
+| Ñuñoa | 9.654,3 | 0,99 |
+| Vitacura | 8.311,7 | 0,85 |
+| Renca | 8.286,4 | 0,85 |
+| Macul | 8.693,7 | 0,89 |
+| Independencia | 8.185,4 | 0,84 |
+| Las Condes | 7.572,9 | 0,77 |
+
+Comunas de SECTRA sin dato capturado (Cerrillos, Conchalí, PAC, Quinta
+Normal, San Joaquín, San Miguel) usan factor neutro `1.0` — mejor no
+ajustar que inventar un sesgo sin evidencia. Verificado en vivo: el mismo
+número de incidentes simulados (1) da `risk_score: 82.65` en una calle de
+Santiago y `risk_score: 60.48` en una de Las Condes — el factor real sí
+cambia el resultado. **Actualización:** al principio `/score` no usaba
+este factor (el polígono libre de una solicitud no tiene comuna real
+asociada por sí solo) — limitación que anticipaba
+`docs/investigacion-datos-riesgo-congestion.md`, sección 3. Se resolvió
+reutilizando `datos_reales_cerca()`: `/score` también busca si hay una
+calle real de SECTRA cerca del polígono y, si la hay, toma su comuna —
+ver sección 4.1 de arriba (`comuna_detectada`, `fuente_congestion`).
+
+**5. (P2) Asignación inteligente — `POST /ranking-inspecciones`.**
+Recibe una lista de obras activas (id, polígono, fecha, si tiene una
+emergencia activa) y devuelve el orden en que el Supervisor debería
+visitarlas: las emergencias activas siempre primero, después por un score
+combinado de riesgo (60%) y congestión (40%). No persiste nada — es una
+función de orden sobre datos que el Backend ya tiene.
+
+**Usa datos reales cuando puede.** Si la obra cae cerca de una calle de
+SECTRA (misma búsqueda de `BUFFER_BUSQUEDA_M` que usa `/score`), la
+congestión viene del flujo vehicular real (no del proxy de densidad
+poblacional) y el riesgo se escala por el factor de criminalidad real de
+esa comuna (CEAD) — `calcular_score` ahora acepta un
+`factor_criminalidad` opcional para esto. Si no hay ninguna calle real
+cerca, cae al mismo proxy que usa `/score`. La respuesta informa cuál se
+usó en `comuna_detectada` y `fuente_congestion`.
+
+```bash
+curl -X POST http://localhost:8000/ranking-inspecciones \
+  -H "Content-Type: application/json" \
+  -d '{"obras": [{"id": "permiso-1", "poligono": {"type":"Polygon","coordinates":[[[-70.665,-33.465],[-70.650,-33.465],[-70.650,-33.450],[-70.665,-33.450],[-70.665,-33.465]]]}, "fecha": "2025-05-15"}]}'
+```
+
+Verificado en vivo con 3 obras: una con emergencia activa (siempre
+primero, aunque empate en `prioridad_score`), una lejos de toda calle
+real (`fuente_congestion: "estimada..."`) y una en Renca
+(`fuente_congestion: "real (SECTRA, 21 calles cercanas)"`,
+`comuna_detectada: "RENCA"`).
+
+**6. Investigación de fuentes de datos (Parte B del Anexo B).** Ver
+[`docs/investigacion-datos-riesgo-congestion.md`](../docs/investigacion-datos-riesgo-congestion.md)
+(desde la raíz del repo) — comparación verificada de fuentes de
+congestión y criminalidad, con fechas de última actualización reales
+comprobadas, no asumidas. Hallazgos relevantes: el portal nacional
+`datos.gob.cl` tiene **todos** sus datasets de criminalidad sin
+actualizar desde 2015 (verificado); el dominio clásico del CEAD
+(`cead.spd.gov.cl`, citado en toda la documentación pública) está
+muerto porque el ministerio se reestructuró, pero el portal **sigue
+vivo** en `cead.minsegpublica.gob.cl` — probado en vivo: consulta real
+por comuna, exportación a Excel y mapa coroplético, con datos hasta
+2026. No tiene API REST (solo el formulario web), así que la
+integración sería descarga manual periódica, no una llamada automática
+del servicio.
 
 Rama de trabajo: `nicolas-riesgo`.

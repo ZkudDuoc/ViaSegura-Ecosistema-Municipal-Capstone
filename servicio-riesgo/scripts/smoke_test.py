@@ -5,7 +5,8 @@ en tu PC que contra la URL de Render. Simula el flujo de la demo: arma el
 polígono como lo hace el frontend al presionar "iniciar trabajo" (ruta +
 5.5 m a cada lado), consulta POST /score como lo hace el Backend, y
 verifica el resultado esperado de cada nivel, el rechazo de datos
-inválidos, las zonas rojas y la latencia.
+inválidos, las zonas rojas, las calles reales (/calles-riesgo), el
+ranking de inspecciones (/ranking-inspecciones) y la latencia.
 
 Uso:
     python scripts/smoke_test.py                              # 127.0.0.1:8000
@@ -30,10 +31,13 @@ METROS_POR_GRADO_LON = 92_800
 BUFFER_RUTA_M = 5.5  # ancho del camión 2.5 m + conos 3 m, a cada lado
 FECHA = "2026-10-15"
 
-# nombre: (lat, lon, nivel, incidentes, risk_score) — ruta de 150 m E-O
+# nombre: (lat, lon, nivel, incidentes, risk_score) — ruta de 150 m E-O.
+# "riesgo medio" usa 57.53, no 55.07: ese punto cae en Recoleta, que tiene
+# factor de criminalidad real capturado (CEAD) sobre el promedio nacional
+# — ver app/services/calles_riesgo.py:datos_reales_cerca.
 ESCENARIOS = {
     "riesgo bajo": (-33.421799, -70.695054, "bajo", 1, 32.97),
-    "riesgo medio": (-33.403018, -70.643878, "medio", 1, 55.07),
+    "riesgo medio": (-33.403018, -70.643878, "medio", 1, 57.53),
     "riesgo alto": (-33.460763, -70.667891, "alto", 2, 86.47),
     "sin incidentes": (-33.4105, -70.6905, "bajo", 0, 0.0),
 }
@@ -121,7 +125,38 @@ def main():
     status, z, _ = llamar(base, "/zonas-rojas")
     res.check(status == 200 and z["total_clusters"] > 0, "devuelve clusters", f"{z.get('total_clusters')} zonas")
 
-    print("\n5. Latencia (30 consultas /score seguidas, el Backend espera < 5 s)")
+    print("\n5. /calles-riesgo (calles reales de SECTRA + criminalidad real de CEAD)")
+    status, c, ms = llamar(base, "/calles-riesgo")
+    res.check(status == 200 and c["total_calles"] > 0, "devuelve calles", f"{c.get('total_calles')} tramos ({ms:.0f} ms)")
+    if status == 200 and c["total_calles"] > 0:
+        calle = c["calles"][0]
+        res.check(
+            {"risk_score", "congestion_score", "factor_criminalidad_real", "geometry_geojson"} <= set(calle),
+            "cada calle trae risk, congestión y factor de criminalidad real",
+        )
+    status, c_santiago, _ = llamar(base, "/calles-riesgo?comuna=SANTIAGO")
+    res.check(
+        status == 200 and all(cal["comuna"] == "SANTIAGO" for cal in c_santiago["calles"]),
+        "filtro ?comuna=SANTIAGO funciona", f"{c_santiago.get('total_calles')} calles",
+    )
+
+    print("\n6. /ranking-inspecciones (emergencia siempre primero, datos reales cuando hay)")
+    obras = [
+        {"id": "renca", "poligono": poligono_ruta_este_oeste(-33.4105, -70.6905, 150),
+         "fecha": FECHA, "tipo_actividad": "PROGRAMADA", "emergencia_activa": False},
+        {"id": "emergencia", "poligono": poligono_ruta_este_oeste(-33.460763, -70.667891, 150),
+         "fecha": FECHA, "tipo_actividad": "PROGRAMADA", "emergencia_activa": True},
+    ]
+    status, rk, ms = llamar(base, "/ranking-inspecciones", {"obras": obras})
+    ranking = rk.get("ranking", []) if status == 200 else []
+    res.check(status == 200 and rk.get("total") == 2, "ranking responde", f"{ms:.0f} ms")
+    res.check(bool(ranking) and ranking[0]["id"] == "emergencia", "emergencia activa va primero")
+    res.check(
+        bool(ranking) and any(o["id"] == "renca" and o["comuna_detectada"] == "RENCA" for o in ranking),
+        "detecta comuna real (RENCA) cuando hay calles SECTRA cerca",
+    )
+
+    print("\n7. Latencia (30 consultas /score seguidas, el Backend espera < 5 s)")
     cuerpo_req = {"poligono": poligono_ruta_este_oeste(-33.460763, -70.667891, 150),
                   "fecha": FECHA, "tipo_actividad": "PROGRAMADA"}
     tiempos = sorted(llamar(base, "/score", cuerpo_req)[2] for _ in range(30))
