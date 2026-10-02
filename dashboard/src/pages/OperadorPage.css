@@ -310,3 +310,60 @@
   font-size: 12px;
   color: var(--color-text-muted);
 }
+.calles-control {
+  margin: 12px 0 8px;
+}
+
+.calles-control-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.calles-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.calles-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+.calles-control select {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.calles-estado {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.texto-error-chico {
+  color: var(--color-danger);
+}
+
+.calles-leyenda {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.calles-fuente {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

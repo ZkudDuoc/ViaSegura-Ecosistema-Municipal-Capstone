@@ -4,6 +4,7 @@ import MapView from "../components/MapView";
 import { listarPendientes, aprobarPermiso, listarOperativos } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
 import { useEventoSocket } from "../context/SocketContext";
+import CallesRiesgoControl, { useCapaCalles } from "../components/CallesRiesgoControl";
 import {
   ESTADO_LABEL,
   ESTADO_CLASS,
@@ -87,6 +88,7 @@ export default function OperadorPage() {
   const [operativos, setOperativos] = useState([]);
   const [aviso, setAviso] = useState(null);
   const [foco, setFoco] = useState(null);
+    const capaCalles = useCapaCalles();
 
   const [pestana, setPestana] = useState("TODAS");
   const [riesgo, setRiesgo] = useState("TODOS");
@@ -201,8 +203,15 @@ export default function OperadorPage() {
         </div>
       )}
 
+            <CallesRiesgoControl {...capaCalles.control} />
       <div id="mapa-bandeja">
-        <MapView height={360} operativos={operativos} foco={foco} />
+        <MapView
+          height={360}
+          operativos={operativos}
+          foco={foco}
+          calles={capaCalles.features}
+          colorCallesPor={capaCalles.colorPor}
+        />
       </div>
       <div className="operativos-leyenda">
         <span className="leyenda-gradiente" />
