@@ -156,3 +156,157 @@
 .leyenda-separador {
   opacity: 0.6;
 }
+.bandeja-encabezado {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.en-vivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.en-vivo::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-success);
+  animation: latido 1.6s ease-in-out infinite;
+}
+
+@keyframes latido {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.aviso-vivo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #e0ecff;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary-dark);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.aviso-vivo.urgente {
+  background: #fdeceb;
+  border-color: var(--color-danger);
+  color: #b3261e;
+}
+
+.aviso-vivo button {
+  border: none;
+  background: none;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+
+.bandeja-pestanas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.bandeja-pestana {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.bandeja-pestana.activa {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.bandeja-contador {
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 12px;
+  text-align: center;
+}
+
+.bandeja-pestana.activa .bandeja-contador {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.bandeja-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.bandeja-filtros input,
+.bandeja-filtros select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.bandeja-filtros input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.bandeja-resumen {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.bandeja-resumen + .solicitudes-table {
+  margin-top: 8px;
+}
+
+.fila-emergencia td:first-child {
+  box-shadow: inset 4px 0 0 var(--color-danger);
+}
+
+.badge-emergencia {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #fdeceb;
+  color: #b3261e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.celda-sub {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

@@ -7,6 +7,8 @@ export const ESTADO_LABEL = {
   FINALIZADO: "Finalizada",
   EXPIRADO: "Expirada",
   REVOCADO: "Revocada",
+  RECHAZADO: "Rechazada",
+  SUSPENDIDO: "Suspendida",
 };
 
 export const ESTADO_CLASE = {
@@ -18,6 +20,20 @@ export const ESTADO_CLASE = {
   FINALIZADO: "badge-neutro",
   EXPIRADO: "badge-error",
   REVOCADO: "badge-error",
+  RECHAZADO: "badge-error",
+  SUSPENDIDO: "badge-error",
+};
+
+export const RESULTADO_INSPECCION_LABEL = {
+  CONFORME: "Faena aprobada",
+  NO_CONFORME: "No conforme (infracción)",
+  SUSPENDIDA: "Obra suspendida",
+};
+
+export const RESULTADO_INSPECCION_CLASE = {
+  CONFORME: "badge-ok",
+  NO_CONFORME: "badge-pendiente",
+  SUSPENDIDA: "badge-error",
 };
 
 export function formatearFecha(iso) {

@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import { listarPermisos, verificarQr } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
 import { esCodigoCorto } from "../utils/qr";
+import { leerRecientes } from "../utils/recientes";
 import "./paginas.css";
 import "./supervisor.css";
 
 const ID_LECTOR = "lector-qr";
+
+function haceCuanto(ms) {
+  const minutos = Math.round((Date.now() - ms) / 60000);
+  if (minutos < 1) return "recién";
+  if (minutos < 60) return `hace ${minutos} min`;
+  return `hace ${Math.floor(minutos / 60)} h`;
+}
 
 export default function EscanearPage() {
   const navigate = useNavigate();
@@ -16,6 +24,7 @@ export default function EscanearPage() {
   const [codigo, setCodigo] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState(null);
+  const [recientes] = useState(leerRecientes);
 
   const detener = async () => {
     const lector = lectorRef.current;
@@ -118,6 +127,25 @@ export default function EscanearPage() {
         <button type="button" className="btn-primary" onClick={iniciar}>
           Escanear QR
         </button>
+      )}
+
+      {recientes.length > 0 && !escaneando && (
+        <section className="card paso recientes">
+          <h2 className="paso-titulo">Revisados recientemente</h2>
+          <ul className="recientes-lista">
+            {recientes.map((r) => (
+              <li key={r.id}>
+                <Link to={`/permisos/${r.id}`} className="reciente-item">
+                  <span className="reciente-codigo">{r.id.slice(0, 8).toUpperCase()}</span>
+                  <span className="reciente-info">
+                    {r.empresa ?? "Persona natural"} · {r.rut}
+                  </span>
+                  <span className="reciente-tiempo">{haceCuanto(r.revisadoEn)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <form className="card paso busqueda-manual" onSubmit={buscarManual}>

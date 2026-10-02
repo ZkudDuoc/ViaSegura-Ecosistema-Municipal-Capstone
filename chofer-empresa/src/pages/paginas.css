@@ -168,3 +168,93 @@
   border-radius: 6px;
   padding: 2px 8px;
 }
+.personal-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.persona {
+  background: var(--color-bg);
+}
+
+.persona-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.persona-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.check input {
+  width: 20px;
+  height: 20px;
+}
+
+.persona-aviso {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: #8a6200;
+  background: #fff4d6;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.campo-error {
+  font-size: 13px;
+}
+
+.maquinaria-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.maquinaria-item {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+}
+
+.formulario-ayuda {
+  text-align: center;
+  margin-top: 8px;
+}
+.permiso-aviso-chofer {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #e1f5ea;
+  color: #13774a;
+  font-size: 13px;
+  font-weight: 600;
+}
+.camion-acciones {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-link-peligro {
+  color: var(--color-danger);
+}
+
+.camion-edicion-botones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}

@@ -3,17 +3,12 @@ import { Link } from "react-router-dom";
 import { listarPermisos } from "../services/permisoService";
 import { getApiErrorMessage } from "../services/api";
 import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../utils/formato";
-import QrPermisoModal from "../components/QrPermisoModal";
 import "./paginas.css";
-
-// Estados en que el supervisor puede fiscalizar el permiso en terreno.
-const ESTADOS_CON_QR = ["APROBADO", "ACTIVO", "ACTIVO_PENDIENTE_EVIDENCIA"];
 
 export default function HomePage() {
   const [permisos, setPermisos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [qrPermiso, setQrPermiso] = useState(null);
 
   const cargar = () => {
     setError(null);
@@ -53,7 +48,7 @@ export default function HomePage() {
           <li key={p.id} className="card">
             <div className="permiso-cabecera">
               <span className="permiso-tipo">
-                {p.tipo_actividad === "EMERGENCIA" ? "Emergencia" : "Programada"}
+                {p.tipo_actividad === "EMERGENCIA" ? "Emergencia" : "Programada"} · {p.id.slice(0, 8).toUpperCase()}
               </span>
               <span className={`badge ${ESTADO_CLASE[p.estado] ?? ""}`}>
                 {ESTADO_LABEL[p.estado] ?? p.estado}
@@ -65,20 +60,17 @@ export default function HomePage() {
             <div className="permiso-detalle">Riesgo: {p.riesgo ?? "sin evaluar"}</div>
 
             {p.estado === "APROBADO" && (
-              <Link to={`/solicitudes/${p.id}/llegada`} className="btn-primary btn-accion">
-                Iniciar trabajo
-              </Link>
+              <p className="permiso-aviso-chofer">
+                Aprobada. Para iniciar el trabajo, genera el código del chofer en "Ver detalle".
+              </p>
             )}
-            {ESTADOS_CON_QR.includes(p.estado) && (
-              <button type="button" className="btn-secondary btn-accion" onClick={() => setQrPermiso(p)}>
-                Mostrar QR
-              </button>
-            )}
+
+            <Link to={`/solicitudes/${p.id}`} className="btn-secondary btn-accion">
+              Ver detalle
+            </Link>
           </li>
         ))}
       </ul>
-
-      {qrPermiso && <QrPermisoModal permiso={qrPermiso} onCerrar={() => setQrPermiso(null)} />}
     </div>
   );
 }

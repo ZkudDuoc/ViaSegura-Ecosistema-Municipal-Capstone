@@ -6,6 +6,7 @@ import EscanearPage from "./pages/EscanearPage";
 import PermisoPage from "./pages/PermisoPage";
 import MultasPage from "./pages/MultasPage";
 import NuevaMultaPage from "./pages/NuevaMultaPage";
+import InspeccionPage from "./pages/InspeccionPage";
 
 function RequireAuth({ children }) {
   const { usuario, verificando } = useAuth();
@@ -30,6 +31,7 @@ export default function App() {
         >
           <Route index element={<EscanearPage />} />
           <Route path="/permisos/:id" element={<PermisoPage />} />
+          <Route path="/permisos/:id/inspeccion" element={<InspeccionPage />} />
           <Route path="/multas" element={<MultasPage />} />
           <Route path="/multas/nueva" element={<NuevaMultaPage />} />
         </Route>

@@ -6,7 +6,6 @@ const NAV_LINKS = [
   { to: "/", label: "Mis solicitudes", end: true },
   { to: "/solicitud", label: "Nueva solicitud" },
   { to: "/camiones", label: "Camiones" },
-  { to: "/panico", label: "Pánico" },
 ];
 
 export default function AppLayout() {

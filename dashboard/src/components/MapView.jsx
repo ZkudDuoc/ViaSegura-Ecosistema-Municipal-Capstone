@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./MapView.css";
 
 const OSM_STYLE = {
   version: 8,
@@ -27,6 +28,7 @@ const COLOR_POR_PROGRESO = [
 ];
 const RADIO_POR_PROGRESO = ["interpolate", ["linear"], ["get", "progreso"], 0, 8, 1, 14];
 const PULSO_MS = 2000;
+const ZOOM_FOCO = 17;
 
 function calcularProgreso(op, ahora) {
   const inicio = new Date(op.inicio).getTime();
@@ -70,14 +72,45 @@ function construirFeatures(operativos, ahora) {
   };
 }
 
-export default function MapView({ height = 420, operativos = [] }) {
+// `foco`: punto { lat, lng } a destacar (ej. una alerta de pánico). Cada vez
+// que cambia, el mapa vuela ahí y pone un marcador rojo.
+export default function MapView({ height = 420, operativos = [], foco = null }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const operativosRef = useRef(operativos);
+  const listoRef = useRef(false);
+  const encuadradoRef = useRef(false);
+  const marcadorFocoRef = useRef(null);
+
+  // Encuadra el mapa sobre todas las áreas de los servicios activos.
+  const encuadrarOperativos = useCallback(() => {
+    const map = mapRef.current;
+    const coords = operativosRef.current.flatMap((op) => op.area?.coordinates?.[0] ?? []);
+    if (!map || coords.length === 0) return false;
+    const bounds = coords.reduce(
+      (b, coord) => b.extend(coord),
+      new maplibregl.LngLatBounds(coords[0], coords[0])
+    );
+    map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 800 });
+    return true;
+  }, []);
 
   useEffect(() => {
     operativosRef.current = operativos;
-  }, [operativos]);
+    // Se encuadra una sola vez al llegar los primeros servicios, para no mover
+    // el mapa en cada refresco mientras el operador lo está mirando.
+    if (listoRef.current && !encuadradoRef.current && operativos.length) {
+      encuadradoRef.current = encuadrarOperativos();
+    }
+  }, [operativos, encuadrarOperativos]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!foco || !map) return;
+    map.flyTo({ center: [foco.lng, foco.lat], zoom: ZOOM_FOCO });
+    if (!marcadorFocoRef.current) marcadorFocoRef.current = new maplibregl.Marker({ color: "#dc2626" });
+    marcadorFocoRef.current.setLngLat([foco.lng, foco.lat]).addTo(map);
+  }, [foco]);
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -91,11 +124,10 @@ export default function MapView({ height = 420, operativos = [] }) {
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    let listo = false;
     const vacio = { type: "FeatureCollection", features: [] };
 
     const actualizarDatos = () => {
-      if (!listo) return;
+      if (!listoRef.current) return;
       const { puntos, areas } = construirFeatures(operativosRef.current, Date.now());
       map.getSource("operativos")?.setData(puntos);
       map.getSource("operativos-area")?.setData(areas);
@@ -142,14 +174,15 @@ export default function MapView({ height = 420, operativos = [] }) {
       map.on("mouseenter", "operativos-centro", () => (map.getCanvas().style.cursor = "pointer"));
       map.on("mouseleave", "operativos-centro", () => (map.getCanvas().style.cursor = ""));
 
-      listo = true;
+      listoRef.current = true;
       actualizarDatos();
+      if (operativosRef.current.length) encuadradoRef.current = encuadrarOperativos();
     });
 
     // Pulso: el círculo exterior se expande y se desvanece en ciclos de PULSO_MS.
     let frame;
     const animar = (t) => {
-      if (listo) {
+      if (listoRef.current) {
         const fase = (t % PULSO_MS) / PULSO_MS;
         map.setPaintProperty("operativos-pulso", "circle-radius", ["*", RADIO_POR_PROGRESO, 1 + fase * 1.5]);
         map.setPaintProperty("operativos-pulso", "circle-opacity", 0.5 * (1 - fase));
@@ -164,10 +197,22 @@ export default function MapView({ height = 420, operativos = [] }) {
     return () => {
       cancelAnimationFrame(frame);
       clearInterval(intervalo);
+      listoRef.current = false;
+      encuadradoRef.current = false;
+      marcadorFocoRef.current = null;
       map.remove();
       mapRef.current = null;
     };
-  }, []);
+  }, [encuadrarOperativos]);
 
-  return <div ref={containerRef} style={{ width: "100%", height, borderRadius: 12, overflow: "hidden" }} />;
+  return (
+    <div className="mapa-contenedor" style={{ height }}>
+      <div ref={containerRef} className="mapa-lienzo" />
+      {operativos.length > 0 && (
+        <button type="button" className="mapa-centrar" onClick={encuadrarOperativos}>
+          Ver servicios activos
+        </button>
+      )}
+    </div>
+  );
 }

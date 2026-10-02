@@ -108,3 +108,189 @@
 .btn-multa {
   background: var(--color-danger);
 }
+.btn-inspeccion {
+  margin: 0 0 16px;
+  font-size: 16px;
+  padding: 16px;
+}
+
+.lista-registrados {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.lista-registrados li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lista-registrados li:last-child {
+  border-bottom: none;
+}
+
+.lista-registrados li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lista-registrados .indicadores {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.indicador {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.indicador.ok {
+  background: #e1f5ea;
+  color: #13774a;
+}
+
+.indicador.no {
+  background: #fde4e2;
+  color: #b3261e;
+}
+
+.checklist-punto {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.checklist-punto:first-child {
+  padding-top: 0;
+}
+
+.checklist-punto:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.checklist-titulo {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.checklist-pregunta {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.checklist-referencia {
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  font-size: 13px;
+  background: var(--color-bg);
+  border-radius: 8px;
+  color: var(--color-text);
+}
+
+p.checklist-referencia {
+  padding-left: 10px;
+}
+
+.si-no {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.si-no button {
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.si-no button.si.activo {
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: #fff;
+}
+
+.si-no button.no.activo {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
+}
+
+.acciones-inspeccion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.acciones-inspeccion .permiso-detalle {
+  margin: -4px 0 0;
+}
+
+.btn-aprobar {
+  background: var(--color-success);
+}
+
+.btn-suspender {
+  background: #7f1d1d;
+}
+.recientes {
+  margin-top: 16px;
+}
+
+.recientes-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reciente-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.reciente-codigo {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.reciente-info {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reciente-tiempo {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
