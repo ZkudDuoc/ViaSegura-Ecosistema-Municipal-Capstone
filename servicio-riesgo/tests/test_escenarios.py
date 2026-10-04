@@ -9,14 +9,21 @@ regenera el dataset y un nivel cambia, este test falla y obliga a
 revisar el efecto (no son coordenadas mágicas, son regresión de
 calibración).
 
-"medio" sube de 55.07 a 57.53 desde que /score empezó a usar el factor
-de criminalidad real por comuna cuando hay una calle SECTRA cerca (ver
-app/services/calles_riesgo.py:datos_reales_cerca): ese punto cae en
-Recoleta, factor real 1.0704 (sobre el promedio nacional). Los otros 3
-no se mueven: "alto" no tiene ninguna calle real cerca, "bajo" cae en
-Quinta Normal (sin dato de CEAD capturado, factor neutro 1.0), y
-"sin_riesgo" tiene 0 incidentes así que el factor no tiene nada que
-multiplicar.
+Historia de los valores:
+- Semana 5: "medio" subió de 55.07 a 57.53 porque /score empezó a usar el
+  factor de criminalidad real (CEAD) cuando hay una calle SECTRA cerca.
+- Semana 6: /score suma además la exposición vial de las calles cercanas
+  (CEAD repartido por flujo x largo, ver app/services/calles_riesgo.py) y
+  RISK_TAU sube de 2.5 a 3.5 (ver scoring.py). Por eso:
+  * "alto" baja de 86.47 a 76.03 (solo cambia TAU: no tiene calles cerca,
+    así que la exposición no aplica);
+  * el punto que antes era "bajo" (Quinta Normal) ahora es "medio" (38.58),
+    porque se le suma la exposición de sus calles; el nuevo "bajo" es un
+    punto en San Miguel (31.19), que sale de
+    `python scripts/generar_escenarios_demo.py --fecha 2026-10-15`;
+  * "sin_riesgo" ya no da exactamente 0.0 (6.69): sin incidentes, igual
+    queda la línea base de exposición de las calles de Renca. Sigue siendo
+    nivel "bajo".
 """
 
 import pytest
@@ -29,10 +36,10 @@ RUMBO = 90
 
 # nombre: (lat, lon, nivel esperado, incidentes esperados, risk_score esperado)
 ESCENARIOS = {
-    "bajo": (-33.421799, -70.695054, "bajo", 1, 32.97),
-    "medio": (-33.403018, -70.643878, "medio", 1, 57.53),
-    "alto": (-33.460763, -70.667891, "alto", 2, 86.47),
-    "sin_riesgo": (-33.4105, -70.6905, "bajo", 0, 0.0),
+    "bajo": (-33.48859, -70.651381, "bajo", 1, 31.19),
+    "medio": (-33.421799, -70.695054, "medio", 1, 38.58),
+    "alto": (-33.460763, -70.667891, "alto", 2, 76.03),
+    "sin_riesgo": (-33.4105, -70.6905, "bajo", 0, 6.69),
 }
 
 

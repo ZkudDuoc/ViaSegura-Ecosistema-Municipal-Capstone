@@ -56,12 +56,15 @@ curl -X POST http://localhost:8000/score \
 ```
 
 ```json
-{"risk_score":98.95,"congestion_score":9.81,"nivel":"alto","n_incidentes_considerados":3,"buffer_aplicado_m":75.0,"explicacion":{"resumen":"Se encontraron 3 incidente(s) cercano(s) en los últimos 45 días (misma época del año): 1 de hurto, 1 de robo vehiculo, 1 de lesiones. La ventana solicitada es en horario nocturno (20:00-6:00), por lo que el riesgo se incrementó un 30%. Esta zona está en la comuna de Santiago, que según cifras oficiales del CEAD registra más delitos que el promedio nacional (factor 1.4597).","incidentes_considerados":[{"tipo_incidente":"hurto","gravedad":"alta","fecha":"2025-05-16"},{"tipo_incidente":"robo_vehiculo","gravedad":"media","fecha":"2025-06-08"},{"tipo_incidente":"lesiones","gravedad":"baja","fecha":"2025-06-09"}],"franja_horaria":"noche","peso_nocturno_aplicado":true},"comuna_detectada":"SANTIAGO","fuente_congestion":"real (SECTRA, 296 calles cercanas)","tipo_actividad":"PROGRAMADA"}
+{"risk_score":99.15,"congestion_score":2.94,"nivel":"alto","n_incidentes_considerados":3,"buffer_aplicado_m":75.0,"explicacion":{"resumen":"Se encontraron 3 incidente(s) cercano(s) en los últimos 45 días (misma época del año): 1 de hurto, 1 de robo vehiculo, 1 de lesiones. La ventana solicitada es en horario nocturno (20:00-6:00), por lo que el riesgo se incrementó un 30%. Esta zona está en la comuna de Santiago, que según cifras oficiales del CEAD registra más delitos que el promedio nacional (factor 1.4597). Las calles más expuestas de la zona son Viel, Blanco Encalada, El Parque. La congestión viene del flujo vehicular de SECTRA, ajustado a las 23:00 h con un perfil horario típico (estimación: SECTRA no publica la hora del flujo).","incidentes_considerados":[{"tipo_incidente":"hurto","gravedad":"alta","fecha":"2025-05-16"},{"tipo_incidente":"robo_vehiculo","gravedad":"media","fecha":"2025-06-08"},{"tipo_incidente":"lesiones","gravedad":"baja","fecha":"2025-06-09"}],"franja_horaria":"noche","peso_nocturno_aplicado":true},"comuna_detectada":"SANTIAGO","fuente_congestion":"real (SECTRA, 296 calles cercanas)","calles_afectadas":[{"nombre":"Viel","risk_score":87.95,"congestion_score":6.52},{"nombre":"Blanco Encalada","risk_score":81.3,"congestion_score":6.52},{"nombre":"El Parque","risk_score":80.36,"congestion_score":1.3},{"nombre":"Manuel Antonio Matta","risk_score":78.65,"congestion_score":6.52},{"nombre":"Presidente Jorge Alessandri Rodriguez","risk_score":68.89,"congestion_score":11.74}],"tipo_actividad":"PROGRAMADA"}
 ```
 
 `tipo_actividad` acepta exactamente los dos valores del enum real del
-Backend: `"PROGRAMADA"` o `"EMERGENCIA"`. `hora_inicio` es opcional (0-23,
-default 12 = mediodía, sin ponderación nocturna) — ver Semana 5.
+Backend: `"PROGRAMADA"` o `"EMERGENCIA"`. `hora_inicio` es opcional (0-23):
+si no se envía, se asume mediodía (sin ponderación nocturna) y la congestión
+queda con el flujo SECTRA sin modular; si se envía, pondera la noche
+(Semana 5) y ajusta la congestión por hora (Semana 6). Desde la Semana 6 la
+respuesta suma `calles_afectadas` y `RISK_TAU` es 3.5 — ver Semana 6.
 
 `comuna_detectada` y `fuente_congestion` (abajo): si el polígono cae cerca
 de una calle real de SECTRA, `congestion_score` y el riesgo usan dato real
@@ -339,3 +342,174 @@ integración sería descarga manual periódica, no una llamada automática
 del servicio.
 
 Rama de trabajo: `nicolas-riesgo`.
+
+## Semana 6 — Santiago Centro: mapa de riesgo y congestión por calle
+
+Pedido del profesor: usar mejor SECTRA y CEAD para que **Santiago Centro**
+funcione de forma óptima — ver congestión y riesgo por calle, dibujar las
+calles del mapa según esas métricas y que la municipalidad las use para
+decidir. Antes de tocar nada se midió cómo estaba (`scripts/calibrar_santiago.py`):
+
+| Medición (2.278 calles reales de Santiago) | Antes | Ahora |
+|---|---|---|
+| Calles con riesgo 0 (mapa verde) | **98 %** | 0 % |
+| Rutas de 150 m en Santiago con `/score` = 0.0 | **92 %** | 0 % |
+| Calles por nivel (bajo / medio / alto) | 98 % / 1 % / 1 % | 33 % / 47 % / 20 % |
+| Rutas `/score` bajo / medio / alto (umbrales 34/67) | 92 % / 4 % / 4 % | 62 % / 30 % / 9 % |
+
+**Por qué estaba así:** solo hay 594 incidentes simulados repartidos en
+todo el bbox, así que casi ninguna calle tenía uno cerca. Y al revés, las
+rutas que sí tenían incidentes saturaban cerca de 100 porque el factor CEAD
+de Santiago (≈1.46) multiplicaba todo.
+
+### 1. Riesgo por calle: el total de CEAD repartido entre las calles
+
+No existen incidentes puntuales reales públicos (CEAD solo publica totales
+por comuna). Para no depender solo de los simulados, el total real de
+delitos de Santiago (78.902 casos policiales 2025) se **reparte entre sus
+calles** según `largo del tramo × flujo vehicular SECTRA`:
+
+- `participación_i = (largo_i × flujo_i) / Σ(largo × flujo)` de la comuna.
+- `casos_estimados_i = total CEAD × participación_i` (la suma da exactamente
+  78.902; hay un test). Solo se calcula en comunas con total capturado
+  (hoy Santiago); en las demás es `null`.
+- `exposicion_relativa_i = participación_i × n.º de tramos` → 1.0 es un
+  tramo típico de su comuna (con tope `EXPOSICION_MAX = 8`).
+- Riesgo de la calle, **con la misma fórmula que `/score`**:
+  `suma = (incidentes_ponderados_del_corredor + BETA_EXPOSICION × exposición) × factor_CEAD`
+  y `risk_score = 100 × (1 − e^(−suma / RISK_TAU))`.
+
+**Es una estimación, no un dato puntual real** — por eso cada calle trae
+`fuente_riesgo: "CEAD distribuido por flujo (estimación)"`. No se pondera
+por jerarquía vial (`clase`) porque el flujo ya la refleja y sumar otro
+multiplicador sería un supuesto sin evidencia.
+
+### 2. Niveles relativos a la comuna (mapa) vs. absolutos (`/score`)
+
+- En el **mapa**, `nivel` es relativo a la comuna: bajo ≤ p33, medio hasta
+  p80, alto > p80 del riesgo de las calles de esa comuna. Sirve para decidir
+  *dónde mirar primero*. Comunas con menos de 50 calles usan los percentiles
+  de toda la red. La leyenda del GeoJSON trae el rango real de cada nivel.
+- En `/score`, `nivel` sigue siendo **absoluto** (umbrales 34 / 67), porque
+  decide si una solicitud entra a la cola de espera. Una calle "alta" del
+  mapa puede tener un `risk_score` de 20 y no es una contradicción: es de las
+  más expuestas de Santiago, no una zona crítica en términos absolutos.
+
+### 3. `RISK_TAU` 2.5 → 3.5 y exposición en `/score`
+
+Con el reparto de CEAD, `/score` suma a los incidentes una línea base:
+`exposición máxima de las calles cercanas × BETA_EXPOSICION` (0.35). Se usa
+el **máximo** (no el promedio) para mantener la propiedad de Semana 4: *una
+ruta más larga nunca baja el riesgo* (hay un test). `RISK_TAU` sube de 2.5 a
+3.5 porque la suma ahora es más grande; se probaron combinaciones sobre 300
+rutas de Santiago (ver `scripts/calibrar_santiago.py`) y esta dejó la mejor
+distribución. Quien quiera otros valores: `BETA_EXPOSICION` y
+`EXPOSICION_MAX` son variables de entorno; `RISK_TAU` está en `scoring.py`.
+
+Efecto en los escenarios de la demo (fecha 2026-10-15): "alto" 86.47 → 76.03,
+"sin incidentes" 0.0 → 6.69 (queda la línea base de Renca, sigue siendo
+bajo), y el punto de Quinta Normal pasó de bajo (32.97) a medio (38.58).
+`DEMO.md`, `tests/test_escenarios.py` y `scripts/smoke_test.py` están
+actualizados.
+
+### 4. Congestión escalonada y por hora
+
+El flujo SECTRA (`flujo_v_h`) es un **cálculo del modelo de transporte** y
+viene en escalones de ~1.111 veh/h: en toda Santiago hay solo **7 valores
+distintos** y el 76 % de las calles está en el escalón base. No se puede
+inventar más precisión que esa, así que:
+
+- `nivel_congestion` es escalonado según el flujo: **bajo** < 2.000 veh/h,
+  **medio** 2.000–3.999, **alto** ≥ 4.000.
+- Con `hora` (0-23) el flujo se modula con un **perfil horario típico de día
+  hábil** (`app/services/congestion.py`): punta de mañana (7-9 h) y de tarde
+  (17-19 h) = 1.0, mediodía ≈ 0.8, noche ≈ 0.2–0.4.
+- **Supuesto explícito:** SECTRA no publica a qué hora corresponde el flujo
+  de esta capa; se toma como hora de máxima demanda. El perfil es un
+  supuesto de trabajo, no un dato SECTRA, y la respuesta lo avisa
+  (`congestion_es_estimada_por_hora: true`).
+- Sin `hora`, el flujo SECTRA queda sin modular (como antes).
+
+### 5. `GET /calles-riesgo` listo para pintar el mapa
+
+Parámetros (todos opcionales; sin ellos la respuesta es igual que en la
+Semana 5, solo con campos aditivos nuevos):
+
+| Parámetro | Valores | Para qué |
+|---|---|---|
+| `comuna` | `SANTIAGO`, … | Filtra por comuna |
+| `metrica` | `riesgo` (def.) \| `congestion` | Qué métrica define el `color` |
+| `hora` | 0–23 | Modula la congestión (estimación) |
+| `bbox` | `minLon,minLat,maxLon,maxLat` | Solo calles que toquen esa caja (422 si es inválido) |
+| `formato` | `json` (def.) \| `geojson` | `geojson` devuelve una FeatureCollection |
+
+```bash
+curl "http://localhost:8000/calles-riesgo?comuna=SANTIAGO&formato=geojson&metrica=riesgo&hora=18"
+```
+
+```json
+{"type":"FeatureCollection",
+ "features":[{"type":"Feature",
+   "geometry":{"type":"LineString","coordinates":[[-70.656411,-33.460437],[-70.656453,-33.45941]]},
+   "properties":{"calle_id":5403,"nombre":"VIEL","comuna":"SANTIAGO","risk_score":87.95,"nivel":"alto",
+                 "congestion_score":21.74,"nivel_congestion":"medio","flujo_vehicular_hora":3332.0,
+                 "n_incidentes":1,"color":"#C62828"}}],
+ "metadata":{"total":2278,"comuna":"SANTIAGO","metrica":"riesgo","hora":18,
+             "congestion_es_estimada_por_hora":true,"fuente_datos":"…",
+             "leyenda":[{"nivel":"bajo","color":"#2E7D32","rango":"0.87 a 6.73","criterio":"relativo a Santiago"},
+                        {"nivel":"medio","color":"#F9A825","rango":"6.74 a 17.01","criterio":"relativo a Santiago"},
+                        {"nivel":"alto","color":"#C62828","rango":"17.05 a 87.95","criterio":"relativo a Santiago"}]}}
+```
+
+Para MapLibre basta `"line-color": ["get", "color"]`. Colores verde
+`#2E7D32` / ámbar `#F9A825` / rojo `#C62828`, legibles sobre mapa claro.
+Con `formato=json` (por defecto) cada calle suma `nivel_congestion`,
+`casos_estimados` y `fuente_riesgo` a los campos de la Semana 5.
+
+**Peso medido** (Santiago, 2.278 calles): 0,80 MB sin comprimir → **~66 KB
+con gzip** (el servicio comprime solo si el cliente manda
+`Accept-Encoding: gzip`, que los navegadores hacen). Toda la red (7.459
+calles): 2,6 MB → 0,24 MB. La geometría se simplifica a ~2 m y 6 decimales,
+imperceptible en el mapa. No hizo falta paginar.
+
+### 6. `POST /score`: calles afectadas y explicación
+
+- Nuevo campo `calles_afectadas`: hasta 5 calles reales más expuestas dentro
+  de la zona (sin repetir nombre), con `nombre`, `risk_score` y
+  `congestion_score`. Vacío si no hay calle SECTRA cerca.
+- `hora_inicio` ahora también ajusta la **congestión** (si viene). Si no
+  viene, se asume mediodía para el peso nocturno y la congestión queda sin
+  modular — el Backend actual no se rompe.
+- `explicacion.resumen` nombra las calles más expuestas, dice si la
+  congestión es real (SECTRA) o estimada por densidad poblacional, y si fue
+  ajustada por hora.
+
+### 7. `GET /health`: cobertura de datos
+
+Nuevo `cobertura_calles` (`tramos_con_comuna`, `tramos_sin_comuna`,
+`tramos_sin_nombre`, `comunas`, `tramos_santiago`) para detectar un cruce
+calle-comuna incompleto sin abrir el archivo. En la medición actual: 7.458
+de 7.459 tramos con comuna, 0 sin nombre, 16 comunas, 2.278 en Santiago.
+
+### 8. Límites que hay que decir con honestidad
+
+- El riesgo por calle es una **estimación** (total real de la comuna
+  repartido por flujo × largo), no incidentes reales ubicados.
+- El total repartido existe solo para Santiago (78.902 casos); las demás
+  comunas solo tienen la tasa, así que usan el factor relativo.
+- La congestión SECTRA tiene 7 escalones y una sola hora; el perfil horario
+  es un supuesto.
+- Los incidentes puntuales siguen siendo simulados (594), y el CEAD está
+  capturado a mano (no tiene API): hay que actualizar
+  `app/data/criminalidad_real.py` si se quiere refrescar.
+- Los niveles del mapa son relativos a cada comuna; no se pueden comparar
+  entre comunas.
+
+### 9. Tests y verificación
+
+`tests/test_santiago_mapa.py` (28 tests): distribución por niveles ≤ 60 %,
+suma del reparto = total CEAD, comuna sin total no inventa casos, hora,
+GeoJSON (forma, color por métrica, leyenda), bbox, gzip y peso < 1,5 MB,
+`calles_afectadas`, monotonía de la ruta más larga y línea base sin
+incidentes. `scripts/smoke_test.py` cubre los endpoints nuevos contra un
+servicio real. Suite completa: 90 tests.

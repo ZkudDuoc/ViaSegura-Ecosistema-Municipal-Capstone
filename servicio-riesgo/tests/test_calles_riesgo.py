@@ -18,11 +18,18 @@ def test_cada_calle_tiene_los_campos_esperados(client):
     body = client.get("/calles-riesgo").json()
     calle = body["calles"][0]
 
-    assert set(calle) == {
+    # Contrato de Semana 5 (no puede desaparecer ningún campo) + los campos
+    # aditivos de Semana 6.
+    assert set(calle) >= {
         "calle_id", "nombre", "comuna", "risk_score", "nivel",
         "congestion_score", "flujo_vehicular_hora", "n_incidentes",
         "factor_criminalidad_real", "geometry_geojson",
     }
+    assert set(calle) - {
+        "calle_id", "nombre", "comuna", "risk_score", "nivel",
+        "congestion_score", "flujo_vehicular_hora", "n_incidentes",
+        "factor_criminalidad_real", "geometry_geojson",
+    } == {"nivel_congestion", "casos_estimados", "fuente_riesgo"}
     assert calle["nivel"] in {"bajo", "medio", "alto"}
     assert 0 <= calle["risk_score"] <= 100
     assert 0 <= calle["congestion_score"] <= 100

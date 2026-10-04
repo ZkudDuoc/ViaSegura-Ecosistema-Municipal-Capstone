@@ -102,7 +102,8 @@ def test_comuna_con_dato_real_de_criminalidad_cambia_el_risk_score(client):
     from datetime import date
 
     from app.data.criminalidad_real import factor_para_comuna
-    from app.services.scoring import calcular_score
+    from app.services.calles_riesgo import datos_reales_cerca
+    from app.services.scoring import BUFFER_BUSQUEDA_M, calcular_score
 
     poligono = poligono_desde_ruta_recta(-33.4105, -70.6905, 150, 90)
     response = client.post("/ranking-inspecciones", json={"obras": [_obra("renca", poligono)]})
@@ -112,11 +113,25 @@ def test_comuna_con_dato_real_de_criminalidad_cambia_el_risk_score(client):
     factor_real = factor_para_comuna("RENCA")
     assert factor_real != 1.0
 
+    exposicion = datos_reales_cerca(
+        shape(poligono), client.app.state.calles, BUFFER_BUSQUEDA_M
+    )["exposicion_relativa"]
     esperado = calcular_score(
         client.app.state.incidents_gdf,
         client.app.state.census,
         shape(poligono),
         date(2026, 10, 15),
         factor_criminalidad=factor_real,
+        exposicion_relativa=exposicion,
     )
     assert obra["risk_score"] == esperado["risk_score"]
+
+    # Y el factor realmente cuenta: con factor neutro el resultado sería otro.
+    neutro = calcular_score(
+        client.app.state.incidents_gdf,
+        client.app.state.census,
+        shape(poligono),
+        date(2026, 10, 15),
+        exposicion_relativa=exposicion,
+    )
+    assert obra["risk_score"] != neutro["risk_score"]

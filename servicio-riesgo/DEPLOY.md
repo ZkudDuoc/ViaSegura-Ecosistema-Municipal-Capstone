@@ -82,12 +82,29 @@ falle por esto, cualquiera de estas opciones:
 4. Pedirle a Joshua un timeout mayor (o un reintento) solo en la primera
    consulta.
 
+Detalles de la Semana 6 a tener presentes:
+
+- `data/calles_sectra.geojson` va **versionado en el repo**: el servicio no
+  depende de que SECTRA responda al arrancar. Si el archivo faltara, intenta
+  descargarlo y, si SECTRA tampoco responde, usa una red simulada;
+  `GET /health` lo dice en `datasets.tramos_calle_origen`
+  (`["sectra_real"]` o `["simulado_respaldo"]`). Compruébalo después de cada
+  despliegue.
+- Al arrancar se precalcula el riesgo de las 7.459 calles (unos segundos).
+  La **primera** consulta de `/calles-riesgo` con una `hora` nueva arma su
+  caché (~0,2 s); las siguientes son inmediatas.
+- `/calles-riesgo?comuna=SANTIAGO&formato=geojson` pesa ~66 KB comprimido, así
+  que no afecta el plan gratis. El navegador pide gzip solo.
+
 ## Variables de entorno
 
 | Variable | Default | Para qué |
 |---|---|---|
 | `PORT` | lo pone Render | Puerto (el `startCommand` ya usa `$PORT`) |
 | `BUFFER_BUSQUEDA_M` | `75` | Margen en metros alrededor del polígono recibido. `0` lo desactiva |
+| `BETA_EXPOSICION` | `0.35` | Peso de la línea base de exposición vial (CEAD repartido por calle) frente a un incidente. Ver README, Semana 6 |
+| `EXPOSICION_MAX` | `8` | Tope de la exposición relativa de un solo tramo |
+| `COMUNA_PRINCIPAL` | `SANTIAGO` | Comuna que `/health` reporta en `cobertura_calles` |
 | `INCIDENTS_DATASET_PATH` / `INE_CENSUS_DATA_PATH` | `./data/*.csv` | Rutas de los datasets (ya vienen en el repo) |
 
 ## Seguridad

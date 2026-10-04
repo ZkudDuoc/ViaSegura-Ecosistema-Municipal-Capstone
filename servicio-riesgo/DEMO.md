@@ -13,17 +13,19 @@ posición GPS en el frontend; el resultado esperado es:
 
 | Escenario | GPS del camión (lat, lon) | risk_score | nivel | Incidentes cercanos |
 |---|---|---|---|---|
-| Sin riesgo | -33.4105, -70.6905 | 0.0 | **bajo** | 0 |
-| Riesgo bajo | -33.421799, -70.695054 | 32.97 | **bajo** | 1 (leve) |
-| Riesgo medio | -33.403018, -70.643878 | **57.53** | **medio** | 1 (media) |
-| Riesgo alto | -33.460763, -70.667891 | 86.47 | **alto** | 2 |
+| Sin incidentes | -33.4105, -70.6905 | 6.69 | **bajo** | 0 |
+| Riesgo bajo | -33.48859, -70.651381 | 31.19 | **bajo** | 1 |
+| Riesgo medio | -33.421799, -70.695054 | **38.58** | **medio** | 1 |
+| Riesgo alto | -33.460763, -70.667891 | 76.03 | **alto** | 2 |
 
-El de "riesgo medio" cae en Recoleta, una calle real de SECTRA con factor
-de criminalidad real (CEAD) sobre el promedio nacional — por eso
-`comuna_detectada: "RECOLETA"` y `fuente_congestion: "real (SECTRA, ...)"`
-en la respuesta, en vez de la estimación por densidad poblacional. Es un
-buen punto para mostrar en vivo: el mismo endpoint usa dato real cuando
-puede.
+Desde la Semana 6 el score suma una **línea base de exposición vial**: el
+total real de delitos de la comuna (CEAD) repartido entre sus calles según
+flujo vehicular y largo. Por eso "sin incidentes" ya no da 0.0 (6.69: igual
+es una calle de Renca, con flujo real) y el punto de Quinta Normal pasó de
+bajo a medio. "Riesgo alto" no tiene ninguna calle SECTRA cerca
+(`comuna_detectada: null`, congestión estimada), así que solo se movió por
+el nuevo `RISK_TAU`. Es un buen punto para mostrar en vivo: el mismo
+endpoint usa dato real cuando puede y avisa cuándo no.
 
 Si la demo es otro día, la época del año cambia qué incidentes entran en la
 ventana (±45 días). Regenera los escenarios para esa fecha:
@@ -31,6 +33,9 @@ ventana (±45 días). Regenera los escenarios para esa fecha:
 ```bash
 python scripts/generar_escenarios_demo.py --fecha 2026-11-05
 ```
+
+Para explicar la calibración de Santiago Centro con números:
+`python scripts/calibrar_santiago.py`.
 
 Imprime, por nivel, el punto GPS y el cuerpo JSON listo para pegar.
 
@@ -64,7 +69,17 @@ Imprime, por nivel, el punto GPS y el cuerpo JSON listo para pegar.
    datos oficiales del CEAD — se ve en `comuna_detectada` y
    `fuente_congestion` en la respuesta." (ese es el caso "riesgo medio"
    de la tabla)
-6. Mostrar `GET /zonas-rojas` (27 zonas por densidad poblacional) y
+6. **Mapa de Santiago Centro (Semana 6).** "Pintamos las calles reales de
+   Santiago según riesgo o congestión: `GET /calles-riesgo?comuna=SANTIAGO&formato=geojson`
+   ya trae el color de cada calle y la leyenda. Como no existen incidentes
+   puntuales reales, repartimos el total oficial del CEAD de la comuna
+   (78.902 casos en 2025) entre sus calles según el flujo vehicular de
+   SECTRA — es una estimación y la respuesta lo dice. Los niveles son
+   relativos a la comuna: sirven para decidir dónde mirar primero." Y la
+   advertencia honesta: "SECTRA da el flujo en 7 escalones y una sola hora;
+   el ajuste por hora del día usa un perfil típico y está marcado como
+   estimación."
+7. Mostrar `GET /zonas-rojas` (27 zonas por densidad poblacional) y
    `GET /calles-riesgo` (7.459 calles reales, con riesgo y congestión
    real por tramo) para el mapa — y `POST /ranking-inspecciones` si da
    tiempo, para mostrar que el Supervisor siempre visita primero una
