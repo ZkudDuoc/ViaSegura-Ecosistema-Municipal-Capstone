@@ -1,29 +1,39 @@
+/* Escritorio: barra lateral fija a la izquierda y contenido a la derecha. */
 .app {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 240px 1fr;
 }
 
-.app-header {
+.app-lateral {
   position: sticky;
   top: 0;
-  z-index: 10;
+  height: 100vh;
   display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 12px 24px;
+  flex-direction: column;
+  gap: 4px;
+  padding: 20px 14px;
   background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
 }
 
 .app-brand {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--color-primary-dark);
+  padding: 0 10px;
+}
+
+.app-empresa {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 0 10px 16px;
+  overflow-wrap: anywhere;
 }
 
 .app-nav {
   display: flex;
+  flex-direction: column;
   gap: 4px;
   flex: 1;
 }
@@ -31,16 +41,18 @@
 .app-nav-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 500;
+  gap: 12px;
+  min-height: 48px; /* objetivo táctil cómodo */
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
   color: var(--color-text-muted);
 }
 
 .app-nav-link:hover {
   background: var(--color-bg);
+  color: var(--color-text);
 }
 
 .app-nav-link.active {
@@ -48,35 +60,88 @@
   color: #fff;
 }
 
+.app-nav-icono {
+  flex-shrink: 0;
+}
+
+.app-nav-texto-corto {
+  display: none;
+}
+
 .app-usuario {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 10px 0;
+  border-top: 1px solid var(--color-border);
   font-size: 14px;
 }
 
+.app-usuario-nombre {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
 .app-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
-  border-radius: 8px;
-  padding: 6px 12px;
-  font-size: 13px;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
   cursor: pointer;
 }
 
 .app-content {
-  flex: 1;
   width: 100%;
-  max-width: 720px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 24px 16px;
+  padding: 28px 20px;
 }
 
-/* Celular: el menú pasa a una barra fija abajo, estilo app. */
-@media (max-width: 640px) {
-  .app-header {
-    padding: 12px 16px;
-    gap: 12px;
+/* Celular y tablet: arriba solo marca, empresa y Salir; el menú pasa a una
+   barra fija abajo, al alcance del pulgar. */
+@media (max-width: 900px) {
+  .app {
+    display: block;
+  }
+
+  .app-lateral {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .app-brand {
+    font-size: 18px;
+    padding: 0;
+  }
+
+  .app-empresa {
+    flex: 1;
+    padding: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-usuario {
+    margin-left: auto;
+    padding: 0;
+    border-top: none;
   }
 
   .app-usuario-nombre {
@@ -88,39 +153,35 @@
     bottom: 0;
     left: 0;
     right: 0;
+    z-index: 10;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: 2px;
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-    justify-content: space-around;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   }
 
   .app-nav-link {
-    flex-direction: column;
-    gap: 2px;
-    font-size: 11px;
-    padding: 6px 8px;
     flex: 1;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    min-height: 56px;
+    padding: 6px 2px;
+    font-size: 11px;
+    text-align: center;
   }
 
-  .app-nav-icono {
-    font-size: 20px;
+  .app-nav-texto-largo {
+    display: none;
+  }
+
+  .app-nav-texto-corto {
+    display: inline;
   }
 
   .app-content {
-    padding-bottom: 96px; /* espacio para la barra de abajo */
+    padding: 20px 16px 104px; /* espacio para la barra de abajo */
   }
-}
-.app-modo {
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #dce8ff;
-  color: var(--color-primary-dark);
-  white-space: nowrap;
-}
-
-.app-modo.natural {
-  background: #e1f5ea;
-  color: #13774a;
 }

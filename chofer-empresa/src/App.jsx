@@ -4,6 +4,7 @@ import { ChoferProvider } from "./context/ChoferContext";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RegistroPage from "./pages/RegistroPage";
+import InicioPage from "./pages/InicioPage";
 import HomePage from "./pages/HomePage";
 import SolicitudPage from "./pages/SolicitudPage";
 import DetallePage from "./pages/DetallePage";
@@ -42,7 +43,9 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route index element={<HomePage />} />
+            <Route index element={<InicioPage />} />
+            {/* Lista simple por ahora; en el punto 3 pasa a ser el historial con filtros y gráficos. */}
+            <Route path="/solicitudes" element={<HomePage />} />
             <Route path="/solicitud" element={<SolicitudPage />} />
             <Route path="/camiones" element={<CamionesPage />} />
             <Route path="/solicitudes/:id" element={<DetallePage />} />

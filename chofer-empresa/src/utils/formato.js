@@ -9,6 +9,7 @@ export const ESTADO_LABEL = {
   REVOCADO: "Revocada",
   RECHAZADO: "Rechazada",
   SUSPENDIDO: "Suspendida",
+  EN_REVISION: "Corregir horario",  
 };
 
 export const ESTADO_CLASE = {
@@ -22,6 +23,7 @@ export const ESTADO_CLASE = {
   REVOCADO: "badge-error",
   RECHAZADO: "badge-error",
   SUSPENDIDO: "badge-error",
+  EN_REVISION: "badge-pendiente",
 };
 
 export function formatearFecha(iso) {
