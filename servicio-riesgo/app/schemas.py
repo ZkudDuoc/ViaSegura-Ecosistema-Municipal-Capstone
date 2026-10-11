@@ -24,16 +24,19 @@ class ScoreRequest(BaseModel):
             "se refleja en la respuesta solo para trazabilidad."
         )
     )
-    hora_inicio: int = Field(
-        default=12,
+    hora_inicio: int | None = Field(
+        default=None,
         ge=0,
         le=23,
         description=(
             "Hora (0-23) en que comienza la ventana del permiso. Si cae en "
             "horario nocturno (ver NOCHE_HORA_INICIO/NOCHE_HORA_FIN), el "
-            "riesgo se pondera más alto. Por defecto 12 (mediodía, sin "
-            "ponderación) para no romper al Backend mientras no mande la "
-            "hora real — ver README, sección Semana 5."
+            "riesgo se pondera más alto, y si hay calles SECTRA cerca la "
+            "congestión se estima para esa hora (perfil horario, ver "
+            "services/congestion.py). Si no se envía, se asume mediodía "
+            "para el peso nocturno (sin ponderación) y la congestión queda "
+            "con el flujo SECTRA sin modular — así el Backend no se rompe "
+            "mientras no mande la hora real."
         ),
     )
 
@@ -55,6 +58,14 @@ class Explicacion(BaseModel):
     peso_nocturno_aplicado: bool
 
 
+class CalleAfectada(BaseModel):
+    """Una de las calles más expuestas dentro de la zona evaluada."""
+
+    nombre: str
+    risk_score: float = Field(ge=0, le=100)
+    congestion_score: float = Field(ge=0, le=100)
+
+
 class ScoreResponse(BaseModel):
     risk_score: float = Field(ge=0, le=100)
     congestion_score: float = Field(ge=0, le=100)
@@ -72,6 +83,11 @@ class ScoreResponse(BaseModel):
     )
     fuente_congestion: str = Field(
         description="Si congestion_score vino de calles reales (SECTRA) o del proxy de densidad poblacional."
+    )
+    calles_afectadas: list[CalleAfectada] = Field(
+        default_factory=list,
+        description="Hasta 5 calles reales (SECTRA) más expuestas dentro de la zona, "
+        "de mayor a menor riesgo. Vacío si no hay calles reales cerca.",
     )
     tipo_actividad: str
 
@@ -105,7 +121,16 @@ class CalleRiesgo(BaseModel):
     flujo_vehicular_hora: float | None = Field(
         description="Flujo vehicular por hora medido (dato real de SECTRA), null si no estaba disponible para ese tramo."
     )
+    nivel_congestion: Literal["bajo", "medio", "alto"] = Field(
+        description="Congestión en niveles escalonados según el flujo SECTRA (y la hora, si se pidió)."
+    )
     n_incidentes: int
+    casos_estimados: float | None = Field(
+        default=None,
+        description="Delitos anuales estimados en este tramo: total CEAD de la comuna "
+        "repartido por flujo × largo. null si la comuna no tiene total capturado. Es una estimación.",
+    )
+    fuente_riesgo: str
     factor_criminalidad_real: float = Field(
         description="Factor real de criminalidad de la comuna de esta calle "
         "(CEAD, 1.0 = promedio nacional; ver app/data/criminalidad_real.py). "

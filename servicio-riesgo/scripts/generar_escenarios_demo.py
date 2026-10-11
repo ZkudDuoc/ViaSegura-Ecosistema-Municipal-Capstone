@@ -32,7 +32,7 @@ from app import config
 from app.data.calles import cargar_calles, generar_calles
 from app.data.censo import cargar_censo, generar_censo_simulado
 from app.data.incidents import as_geodataframe, cargar_incidentes, generar_incidentes_simulados
-from app.services.calles_riesgo import evaluar_score_con_datos_reales
+from app.services.calles_riesgo import evaluar_score_con_datos_reales, preparar_calles
 from tests.poligonos_ruta import poligono_desde_ruta_recta
 
 LARGO_M = 150
@@ -46,7 +46,7 @@ def buscar_escenarios(fecha: date):
     incidentes = cargar_incidentes(config.INCIDENTS_DATASET_PATH)
     gdf_incidentes = as_geodataframe(incidentes)
     gdf_censo = cargar_censo(config.INE_CENSUS_DATA_PATH)
-    gdf_calles = cargar_calles(config.CALLES_DATASET_PATH)
+    gdf_calles = preparar_calles(cargar_calles(config.CALLES_DATASET_PATH), gdf_incidentes)
 
     encontrados = {}
     for fila in incidentes.itertuples():

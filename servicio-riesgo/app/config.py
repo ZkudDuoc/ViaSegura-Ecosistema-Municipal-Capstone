@@ -32,3 +32,19 @@ PESO_NOCTURNO = float(os.getenv("PESO_NOCTURNO", "1.3"))
 CALLES_DATASET_PATH = SERVICE_ROOT / os.getenv(
     "CALLES_DATASET_PATH", "./data/calles_sectra.geojson"
 )
+
+# Exposición vial (Semana 6). Santiago Centro: casi todas las calles no
+# tienen ningún incidente simulado cerca, así que sin esto el riesgo por
+# calle daba 0 en el 98 % de la comuna (mapa todo verde). El total real de
+# delitos de la comuna (CEAD) se reparte entre sus calles según flujo
+# vehicular (SECTRA) × largo del tramo, y eso suma una "línea base" al
+# riesgo — ver services/calles_riesgo.py:preparar_calles.
+# BETA_EXPOSICION: cuánto pesa esa línea base frente a un incidente
+# ponderado (calibrado con scripts/calibrar_santiago.py).
+# EXPOSICION_MAX: tope de la exposición relativa de un solo tramo, para que
+# un tramo larguísimo no domine el mapa.
+BETA_EXPOSICION = float(os.getenv("BETA_EXPOSICION", "0.35"))
+EXPOSICION_MAX = float(os.getenv("EXPOSICION_MAX", "8"))
+
+# Comuna foco del proyecto (Semana 6): se usa para reportar cobertura en /health.
+COMUNA_PRINCIPAL = os.getenv("COMUNA_PRINCIPAL", "SANTIAGO").upper()

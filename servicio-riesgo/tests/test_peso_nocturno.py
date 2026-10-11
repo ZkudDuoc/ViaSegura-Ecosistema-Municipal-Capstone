@@ -1,6 +1,7 @@
 """Ponderación nocturna (Semana 5, Anexo B): "si la ventana cae de noche,
-el peso debe ser mayor". Valores verificados corriendo calcular_score
-directo (ver conversación de Semana 5) con el dataset real del repo."""
+el peso debe ser mayor". Valores verificados contra el servicio con el
+dataset real del repo (Semana 6: RISK_TAU 3.5 y exposición vial; POLIGONO_BAJO
+es el punto de San Miguel de scripts/generar_escenarios_demo.py)."""
 
 import pytest
 
@@ -9,7 +10,7 @@ from tests.poligonos_ruta import poligono_desde_ruta_recta
 
 FECHA = "2026-10-15"
 POLIGONO_ALTO = poligono_desde_ruta_recta(-33.460763, -70.667891, 150, 90)
-POLIGONO_BAJO = poligono_desde_ruta_recta(-33.421799, -70.695054, 150, 90)
+POLIGONO_BAJO = poligono_desde_ruta_recta(-33.48859, -70.651381, 150, 90)
 
 
 def _score(client, poligono, hora_inicio):
@@ -26,13 +27,13 @@ def _score(client, poligono, hora_inicio):
 
 def test_de_dia_no_aplica_peso_nocturno(client):
     body = _score(client, POLIGONO_ALTO, 12)
-    assert body["risk_score"] == pytest.approx(86.47, abs=0.01)
+    assert body["risk_score"] == pytest.approx(76.03, abs=0.01)
     assert body["explicacion"]["franja_horaria"] == "dia"
 
 
 def test_de_noche_sube_el_risk_score(client):
     body = _score(client, POLIGONO_ALTO, 23)
-    assert body["risk_score"] == pytest.approx(92.57, abs=0.01)
+    assert body["risk_score"] == pytest.approx(84.39, abs=0.01)
     assert body["explicacion"]["franja_horaria"] == "noche"
     assert body["explicacion"]["peso_nocturno_aplicado"] is True
     assert f"{config.PESO_NOCTURNO}" or "nocturno" in body["explicacion"]["resumen"].lower()
