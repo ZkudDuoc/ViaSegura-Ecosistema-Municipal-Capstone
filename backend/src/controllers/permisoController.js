@@ -1,8 +1,10 @@
 const pool = require('../config/db');
-const riskService = require('../services/riskService');
 const bitacoraService = require('../services/bitacoraService');
 const { emitirEventoSolicitud } = require('../services/eventosService');
+const { evaluarYRegistrar, marcarRiesgoPendiente } = require('../services/riesgoPermisoService');
 const { verificarToken, firmarTokenQr } = require('../utils/jwt');
+const { fechaYHoraSantiago } = require('../utils/fechas');
+const { esUuid, fechaIso, errorHttp } = require('../utils/validar');
 const documentoService = require('../services/documentoService');
 
 const ESTADOS_RECHAZADO = ['RECHAZADO'];
@@ -57,6 +59,21 @@ function anilloToWKT(anillo) {
   return `POLYGON((${puntos}))`;
 }
 
+// Advertencias (NO bloquean la solicitud): personal con contrato o EPP que no
+// cubre la ventana del servicio.
+function armarAdvertencias(personas) {
+  const advertencias = [];
+  for (const p of personas) {
+    if (!p.contrato_vigente) advertencias.push({ tipo: 'CONTRATO_VENCIDO', rut: p.rut, nombre: p.nombre ?? null });
+    if (!p.epp_al_dia) advertencias.push({ tipo: 'EPP_VENCIDO', rut: p.rut, nombre: p.nombre ?? null });
+  }
+  return advertencias;
+}
+
+function idsUnicos(...grupos) {
+  return [...new Set(grupos.flat().filter(Boolean))];
+}
+
 async function crear(req, res) {
   const {
     rut_ejecutor,
@@ -70,6 +87,7 @@ async function crear(req, res) {
     altura_estimada_m,
     vehiculo_id,
     vehiculos_ids,
+    trabajadores_ids,
     personal,
   } = req.body;
 
@@ -81,105 +99,160 @@ async function crear(req, res) {
     return res.status(400).json({ error: 'area debe ser un polígono con al menos 3 puntos' });
   }
 
+  const inicio = fechaIso(ventana_inicio);
+  const fin = fechaIso(ventana_fin);
+  if (!inicio || !fin) {
+    return res.status(400).json({ error: 'ventana_inicio y ventana_fin deben ser fechas ISO válidas' });
+  }
+  if (fin <= inicio) {
+    return res.status(400).json({ error: 'ventana_fin debe ser posterior a ventana_inicio' });
+  }
+
+  const listasDeIds = { vehiculos_ids, trabajadores_ids };
+  const idsInvalidos = [comuna_id, vehiculo_id, ...(vehiculos_ids ?? []), ...(trabajadores_ids ?? [])].filter(
+    (id) => id !== undefined && id !== null && !esUuid(id)
+  );
+  const noSonListas = Object.values(listasDeIds).some((v) => v !== undefined && !Array.isArray(v));
+  if (idsInvalidos.length > 0 || noSonListas) {
+    return res.status(400).json({ error: 'Alguno de los identificadores enviados no es válido' });
+  }
+
   const anillo = cerrarAnillo(area);
   const wkt = anilloToWKT(anillo);
+  const empresaId = req.usuario.empresa_id || null;
 
-  const { rows } = await pool.query(
-    `SELECT * FROM fn_crear_permiso(
-       $1, $2, $3, $4,
-       ST_GeomFromText($5, 4326),
-       $6, $7, $8, $9, $10
-     )`,
-    [
-      req.usuario.sub,
-      rut_ejecutor,
-      comuna_id,
-      tipo_actividad,
-      wkt,
-      ventana_inicio,
-      ventana_fin,
-      empresa_ejecutora_id || null,
-      nombre_empresa_ejecutora || null,
-      altura_estimada_m || null,
-    ]
-  );
+  const idsVehiculos = idsUnicos([vehiculo_id], vehiculos_ids ?? []);
+  const idsTrabajadores = idsUnicos(trabajadores_ids ?? []);
+  const { fecha: finDia } = fechaYHoraSantiago(fin);
 
-  let permiso = rows[0];
+  let permiso;
+  let advertencias = [];
+  const client = await pool.connect();
 
-  // Vehículo declarado para el permiso (Semana 4: base de la validación
-  // patente-vs-permiso que hace el Supervisor/Inspector en terreno).
-  if (vehiculo_id) {
-    const { rows: vehiculoRows } = await pool.query(
-      `UPDATE permiso SET vehiculo_id = $1 WHERE id = $2 RETURNING *`,
-      [vehiculo_id, permiso.id]
+  try {
+    await client.query('BEGIN');
+
+    // Pertenencia: solo vehículos de la empresa del solicitante (o propios).
+    if (idsVehiculos.length > 0) {
+      const { rows } = await client.query(
+        `SELECT id FROM vehiculo
+         WHERE id = ANY($1::uuid[]) AND activo = true AND (empresa_id = $2 OR usuario_id = $3)`,
+        [idsVehiculos, empresaId, req.usuario.sub]
+      );
+      if (rows.length !== idsVehiculos.length) {
+        throw errorHttp(403, 'Alguno de los vehículos no pertenece a tu empresa o está dado de baja');
+      }
+    }
+    if (idsTrabajadores.length > 0 && !empresaId) {
+      throw errorHttp(403, 'Solo una cuenta de empresa puede seleccionar trabajadores de la nómina');
+    }
+
+    const { rows } = await client.query(
+      `SELECT * FROM fn_crear_permiso(
+         $1, $2, $3, $4,
+         ST_GeomFromText($5, 4326),
+         $6, $7, $8, $9, $10
+       )`,
+      [
+        req.usuario.sub,
+        rut_ejecutor,
+        comuna_id,
+        tipo_actividad,
+        wkt,
+        ventana_inicio,
+        ventana_fin,
+        empresa_ejecutora_id || null,
+        nombre_empresa_ejecutora || null,
+        altura_estimada_m || null,
+      ]
     );
-    permiso = vehiculoRows[0];
-  }
+    permiso = rows[0];
 
-  // Maquinaria/vehículos adicionales del permiso (más allá del principal).
-  if (Array.isArray(vehiculos_ids) && vehiculos_ids.length > 0) {
-    await pool.query(
-      `INSERT INTO permiso_vehiculo (permiso_id, vehiculo_id)
-       SELECT $1, UNNEST($2::uuid[])
-       ON CONFLICT DO NOTHING`,
-      [permiso.id, vehiculos_ids]
-    );
-  }
+    // Vehículo principal (base de la validación patente-vs-permiso en terreno).
+    if (vehiculo_id) {
+      const { rows: vehiculoRows } = await client.query(
+        `UPDATE permiso SET vehiculo_id = $1 WHERE id = $2 RETURNING *`,
+        [vehiculo_id, permiso.id]
+      );
+      permiso = vehiculoRows[0];
+    }
 
-  // Personal en faena: nómina con RUT, contrato vigente y EPP al día.
-  if (Array.isArray(personal) && personal.length > 0) {
-    for (const persona of personal) {
-      if (!persona?.rut) continue;
-      await pool.query(
-        `INSERT INTO personal_faena (permiso_id, rut, nombre, contrato_vigente, epp_al_dia)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [permiso.id, persona.rut, persona.nombre || null, Boolean(persona.contrato_vigente), Boolean(persona.epp_al_dia)]
+    // Maquinaria/vehículos adicionales.
+    if (Array.isArray(vehiculos_ids) && vehiculos_ids.length > 0) {
+      await client.query(
+        `INSERT INTO permiso_vehiculo (permiso_id, vehiculo_id)
+         SELECT $1, UNNEST($2::uuid[])
+         ON CONFLICT DO NOTHING`,
+        [permiso.id, vehiculos_ids]
       );
     }
+
+    // Personal declarado en línea (compatibilidad).
+    if (Array.isArray(personal)) {
+      for (const persona of personal) {
+        if (!persona?.rut) continue;
+        const contrato = Boolean(persona.contrato_vigente);
+        const epp = Boolean(persona.epp_al_dia);
+        await client.query(
+          `INSERT INTO personal_faena (permiso_id, rut, nombre, cargo, contrato_vigente, epp_al_dia)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [permiso.id, persona.rut, persona.nombre || null, persona.cargo || null, contrato, epp]
+        );
+        advertencias.push(...armarAdvertencias([{ rut: persona.rut, nombre: persona.nombre, contrato_vigente: contrato, epp_al_dia: epp }]));
+      }
+    }
+
+    // Trabajadores de la nómina: se copian como "foto del momento" para que
+    // el historial no cambie si luego editan al trabajador.
+    if (idsTrabajadores.length > 0) {
+      const { rows: copiados } = await client.query(
+        `INSERT INTO personal_faena
+           (permiso_id, trabajador_id, rut, nombre, cargo, contrato_vigente, epp_al_dia,
+            contrato_vigente_hasta, epp_vigente_hasta)
+         SELECT $1, t.id, t.rut, t.nombre, t.cargo,
+                (t.contrato_vigente_hasta IS NOT NULL AND t.contrato_vigente_hasta >= $3::date),
+                (t.epp_vigente_hasta IS NOT NULL AND t.epp_vigente_hasta >= $3::date),
+                t.contrato_vigente_hasta, t.epp_vigente_hasta
+         FROM trabajador t
+         WHERE t.id = ANY($2::uuid[]) AND t.empresa_id = $4 AND t.activo = true
+         RETURNING rut, nombre, contrato_vigente, epp_al_dia`,
+        [permiso.id, idsTrabajadores, finDia, empresaId]
+      );
+      if (copiados.length !== idsTrabajadores.length) {
+        throw errorHttp(403, 'Alguno de los trabajadores no pertenece a tu nómina o está dado de baja');
+      }
+      advertencias.push(...armarAdvertencias(copiados));
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
   }
 
-  // Integración con el Microservicio de Riesgo (Módulo 3): si no responde,
-  // el permiso queda creado igual y sin evaluación (se puede reintentar).
+  // Integración con el Microservicio de Riesgo (Módulo 3). Va FUERA de la
+  // transacción: si no responde, el permiso queda creado igual, marcado con
+  // riesgo pendiente (se reintenta con PATCH /permisos/:id/reevaluar-riesgo).
   let riesgo = null;
   let estadoFinal = permiso.estado;
   try {
-    const resultado = await riskService.evaluarRiesgo({
+    const evaluacion = await evaluarYRegistrar({
+      permisoId: permiso.id,
+      estado: permiso.estado,
       poligono: { type: 'Polygon', coordinates: [anillo] },
-      fecha: String(ventana_inicio).slice(0, 10),
+      ventana_inicio,
       tipo_actividad,
     });
-
-    const nivel = resultado.nivel.toUpperCase();
-
-    await pool.query(
-      `INSERT INTO evaluacion_riesgo (permiso_id, score, nivel, detalle)
-       VALUES ($1, $2, $3, $4)`,
-      [permiso.id, resultado.risk_score, nivel, resultado]
-    );
-
-    riesgo = {
-      nivel: NIVEL_LABEL[nivel] ?? resultado.nivel,
-      score: resultado.risk_score,
-      congestion: resultado.congestion_score,
-    };
-
-    // Riesgo ALTO sin móvil de escolta asignado todavía: entra a la cola de
-    // espera con prioridad (v_cola_espera) hasta que un operador municipal
-    // asigne un móvil (ver asignarMovil / fn_promover_desde_cola_por_movil).
-    // Si ya quedó EN_COLA_ESPERA por conflicto de reserva, se respeta ese motivo.
-    if (nivel === 'ALTO' && permiso.estado === 'PENDIENTE_CONFIRMACION_MUNICIPAL') {
-      const { rows: colaRows } = await pool.query(
-        `UPDATE permiso SET estado = 'EN_COLA_ESPERA', motivo_cola = 'RIESGO_ALTO_SIN_MOVIL'
-         WHERE id = $1 RETURNING estado`,
-        [permiso.id]
-      );
-      estadoFinal = colaRows[0].estado;
-    }
+    riesgo = evaluacion.riesgo;
+    estadoFinal = evaluacion.estado;
   } catch (err) {
     console.error(`No se pudo evaluar el riesgo del permiso ${permiso.id}:`, err.message);
+    await marcarRiesgoPendiente(permiso.id);
   }
 
-  const permisoFinal = { ...permiso, estado: estadoFinal, riesgo };
+  const permisoFinal = { ...permiso, estado: estadoFinal, riesgo, riesgo_pendiente: riesgo === null, advertencias };
   emitirEventoSolicitud(req, 'solicitud:nueva', permisoFinal);
 
   res.status(201).json(permisoFinal);
@@ -195,11 +268,13 @@ async function listar(req, res) {
     `SELECT
        p.id, p.usuario_id, p.rut_ejecutor, p.empresa_ejecutora_id, p.nombre_empresa_ejecutora,
        p.comuna_id, p.tipo_actividad, p.altura_estimada_m, p.estado, p.motivo_cola,
-       p.ventana_inicio, p.ventana_fin, p.geofencing_confirmado_at,
+       p.ventana_inicio, p.ventana_fin, p.geofencing_confirmado_at, p.riesgo_pendiente,
        p.created_at, p.updated_at,
        ST_AsGeoJSON(p.area)::json AS area,
+       v.patente AS patente, v.patente AS vehiculo_patente,
        er.nivel AS nivel_riesgo, er.score AS score_riesgo
      FROM permiso p
+     LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
      LEFT JOIN LATERAL (
        SELECT nivel, score FROM evaluacion_riesgo e
        WHERE e.permiso_id = p.id ORDER BY evaluado_at DESC LIMIT 1
@@ -217,6 +292,7 @@ async function listar(req, res) {
   res.json(permisos);
 }
 
+
 // GET /api/permisos/:id — detalle completo: foto de evidencia, vehículo
 // principal + maquinaria/vehículos adicionales, personal en faena, riesgo
 // con score, y línea de tiempo (bitácora: creada, aprobada, iniciada,
@@ -225,12 +301,12 @@ async function detalle(req, res) {
   const { rows } = await pool.query(
     `SELECT
        p.*, ST_AsGeoJSON(p.area)::json AS area,
-       er.nivel AS nivel_riesgo, er.score AS score_riesgo,
+       er.nivel AS nivel_riesgo, er.score AS score_riesgo, er.detalle AS detalle_riesgo,
        v.patente AS vehiculo_patente, v.alto_m AS vehiculo_alto_m, v.ancho_m AS vehiculo_ancho_m,
        v.largo_m AS vehiculo_largo_m, v.peso_ton AS vehiculo_peso_ton
      FROM permiso p
      LEFT JOIN LATERAL (
-       SELECT nivel, score FROM evaluacion_riesgo e
+       SELECT nivel, score, detalle FROM evaluacion_riesgo e
        WHERE e.permiso_id = p.id ORDER BY evaluado_at DESC LIMIT 1
      ) er ON true
      LEFT JOIN vehiculo v ON v.id = p.vehiculo_id
@@ -252,7 +328,13 @@ async function detalle(req, res) {
   }
 
   const [{ rows: personal }, { rows: vehiculosAdicionales }, lineaTiempo] = await Promise.all([
-    pool.query('SELECT id, rut, nombre, contrato_vigente, epp_al_dia FROM personal_faena WHERE permiso_id = $1', [permiso.id]),
+    pool.query(
+      `SELECT id, rut, nombre, cargo, contrato_vigente, epp_al_dia, trabajador_id,
+              to_char(contrato_vigente_hasta, 'YYYY-MM-DD') AS contrato_vigente_hasta,
+              to_char(epp_vigente_hasta, 'YYYY-MM-DD') AS epp_vigente_hasta
+       FROM personal_faena WHERE permiso_id = $1`,
+      [permiso.id]
+    ),
     pool.query(
       `SELECT v.id, v.patente, v.alto_m, v.ancho_m, v.largo_m, v.peso_ton
        FROM permiso_vehiculo pv JOIN vehiculo v ON v.id = pv.vehiculo_id
@@ -265,6 +347,7 @@ async function detalle(req, res) {
   const {
     nivel_riesgo,
     score_riesgo,
+    detalle_riesgo,
     vehiculo_patente,
     vehiculo_alto_m,
     vehiculo_ancho_m,
@@ -275,12 +358,22 @@ async function detalle(req, res) {
 
   res.json({
     ...permisoBase,
-    riesgo: nivel_riesgo ? { nivel: NIVEL_LABEL[nivel_riesgo] ?? nivel_riesgo, score: score_riesgo } : null,
+    riesgo: nivel_riesgo
+      ? {
+          nivel: NIVEL_LABEL[nivel_riesgo] ?? nivel_riesgo,
+          score: score_riesgo,
+          explicacion: detalle_riesgo?.explicacion?.resumen ?? null,
+          comuna_detectada: detalle_riesgo?.comuna_detectada ?? null,
+          fuente_congestion: detalle_riesgo?.fuente_congestion ?? null,
+          calles_afectadas: detalle_riesgo?.calles_afectadas ?? [],
+        }
+      : null,
     vehiculo: vehiculo_patente
       ? { patente: vehiculo_patente, alto_m: vehiculo_alto_m, ancho_m: vehiculo_ancho_m, largo_m: vehiculo_largo_m, peso_ton: vehiculo_peso_ton }
       : null,
     vehiculos_adicionales: vehiculosAdicionales,
     personal,
+    advertencias: armarAdvertencias(personal),
     linea_tiempo: lineaTiempo,
   });
 }
@@ -368,12 +461,17 @@ async function documento(req, res) {
   res.send(pdf);
 }
 
+// PATCH /api/permisos/:id/aprobar { comentario? } — el comentario queda en la
+// línea de tiempo (bitácora) junto con quién aprobó.
 async function aprobar(req, res) {
+  const comentario =
+    typeof req.body?.comentario === 'string' && req.body.comentario.trim() ? req.body.comentario.trim().slice(0, 500) : null;
+
   const { rows } = await pool.query(
     `UPDATE permiso
      SET estado = 'APROBADO'
      WHERE id = $1 AND comuna_id = $2 AND estado = 'PENDIENTE_CONFIRMACION_MUNICIPAL'
-     RETURNING id, estado, comuna_id, usuario_id`,
+     RETURNING id, estado, comuna_id, usuario_id, empresa_id`,
     [req.params.id, req.usuario.comuna_id]
   );
 
@@ -386,6 +484,7 @@ async function aprobar(req, res) {
     comunaId: rows[0].comuna_id,
     tipoEvento: 'APROBACION_PERMISO',
     accion: 'ACEPTAR',
+    detalle: comentario ? { comentario } : null,
     actorId: req.usuario.sub,
   });
 
@@ -449,7 +548,7 @@ async function rechazar(req, res) {
     `UPDATE permiso
      SET estado = 'RECHAZADO'
      WHERE id = $1 AND comuna_id = $2 AND estado = ANY($3::estado_permiso[])
-     RETURNING id, estado, comuna_id, usuario_id`,
+     RETURNING id, estado, comuna_id, usuario_id, empresa_id`,
     [req.params.id, req.usuario.comuna_id, ESTADOS_RECHAZABLES]
   );
 
@@ -523,7 +622,7 @@ async function revocar(req, res) {
     `UPDATE permiso
      SET estado = 'REVOCADO', revocado_por = $1, revocado_at = now()
      WHERE id = $2 AND comuna_id = $3 AND estado = ANY($4::estado_permiso[])
-     RETURNING id, estado, revocado_por, revocado_at, comuna_id, usuario_id`,
+     RETURNING id, estado, revocado_por, revocado_at, comuna_id, usuario_id, empresa_id`,
     [req.usuario.sub, req.params.id, req.usuario.comuna_id, ESTADOS_REVOCABLES]
   );
 
@@ -720,6 +819,188 @@ async function operativos(req, res) {
   res.json(rows.map(({ area, ...permiso }) => ({ ...calcularEstadoOperativo(permiso), area })));
 }
 
+// PATCH /api/permisos/:id/solicitar-revision { motivo, ventana_propuesta?: { inicio, fin } }
+// La municipalidad pide a la empresa cambiar el horario (aplazar) o revisar
+// sus datos. Solo sobre una solicitud PENDIENTE o ya aprobada pero a futuro.
+// Avisa a la empresa en vivo (solicitud:en_revision) y queda en la bitácora.
+async function solicitarRevision(req, res) {
+  if (!esUuid(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+
+  const { motivo, ventana_propuesta } = req.body || {};
+  if (typeof motivo !== 'string' || !motivo.trim() || motivo.length > 500) {
+    return res.status(400).json({ error: 'motivo es obligatorio (máximo 500 caracteres)' });
+  }
+
+  let propuestaInicio = null;
+  let propuestaFin = null;
+  if (ventana_propuesta !== undefined && ventana_propuesta !== null) {
+    const inicio = fechaIso(ventana_propuesta.inicio);
+    const fin = fechaIso(ventana_propuesta.fin);
+    if (!inicio || !fin || fin <= inicio) {
+      return res.status(400).json({ error: 'ventana_propuesta debe traer inicio y fin ISO, con fin posterior a inicio' });
+    }
+    propuestaInicio = ventana_propuesta.inicio;
+    propuestaFin = ventana_propuesta.fin;
+  }
+
+  const { rows } = await pool.query(
+    `UPDATE permiso
+     SET estado = 'EN_REVISION', revision_motivo = $1,
+         revision_ventana_inicio = $2, revision_ventana_fin = $3
+     WHERE id = $4 AND comuna_id = $5
+       AND (estado = 'PENDIENTE_CONFIRMACION_MUNICIPAL' OR (estado = 'APROBADO' AND ventana_inicio > now()))
+     RETURNING id, estado, comuna_id, usuario_id, empresa_id`,
+    [motivo.trim(), propuestaInicio, propuestaFin, req.params.id, req.usuario.comuna_id]
+  );
+
+  if (!rows[0]) {
+    return res.status(409).json({ error: 'La solicitud no existe o no se puede enviar a revisión en su estado actual' });
+  }
+
+  const detalle = {
+    motivo: motivo.trim(),
+    ventana_propuesta: propuestaInicio ? { inicio: propuestaInicio, fin: propuestaFin } : null,
+  };
+
+  await bitacoraService.registrarEvento({
+    permisoId: rows[0].id,
+    comunaId: rows[0].comuna_id,
+    tipoEvento: 'SOLICITUD_REVISION',
+    detalle,
+    actorId: req.usuario.sub,
+  });
+
+  emitirEventoSolicitud(req, 'solicitud:en_revision', { ...rows[0], ...detalle });
+
+  res.json({ id: rows[0].id, estado: rows[0].estado, ...detalle });
+}
+
+// PATCH /api/permisos/:id/corregir — la empresa corrige una solicitud EN_REVISION
+// (cambia la ventana u otros datos editables) y vuelve a quedar PENDIENTE.
+// La puede corregir quien la creó o un administrador (LOGISTICA) de su empresa.
+async function corregir(req, res) {
+  if (!esUuid(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+
+  const { ventana_inicio, ventana_fin, altura_estimada_m, rut_ejecutor, vehiculo_id } = req.body || {};
+  const cambios = {};
+
+  if (ventana_inicio !== undefined || ventana_fin !== undefined) {
+    const inicio = fechaIso(ventana_inicio);
+    const fin = fechaIso(ventana_fin);
+    if (!inicio || !fin || fin <= inicio) {
+      return res
+        .status(400)
+        .json({ error: 'ventana_inicio y ventana_fin deben ser fechas ISO válidas, con fin posterior a inicio' });
+    }
+    cambios.ventana_inicio = ventana_inicio;
+    cambios.ventana_fin = ventana_fin;
+  }
+  if (altura_estimada_m !== undefined) {
+    if (typeof altura_estimada_m !== 'number' || !(altura_estimada_m > 0)) {
+      return res.status(400).json({ error: 'altura_estimada_m debe ser un número mayor a 0' });
+    }
+    cambios.altura_estimada_m = altura_estimada_m;
+  }
+  if (rut_ejecutor !== undefined) {
+    if (typeof rut_ejecutor !== 'string' || !rut_ejecutor.trim()) {
+      return res.status(400).json({ error: 'rut_ejecutor no es válido' });
+    }
+    cambios.rut_ejecutor = rut_ejecutor.trim();
+  }
+  if (vehiculo_id !== undefined) {
+    if (!esUuid(vehiculo_id)) return res.status(400).json({ error: 'vehiculo_id no es válido' });
+    const { rows } = await pool.query(
+      `SELECT id FROM vehiculo WHERE id = $1 AND activo = true AND (empresa_id = $2 OR usuario_id = $3)`,
+      [vehiculo_id, req.usuario.empresa_id || null, req.usuario.sub]
+    );
+    if (!rows[0]) return res.status(403).json({ error: 'El vehículo no pertenece a tu empresa o está dado de baja' });
+    cambios.vehiculo_id = vehiculo_id;
+  }
+
+  const campos = Object.keys(cambios);
+  const sets = campos.map((campo, i) => `${campo} = ${i + 5}`);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE permiso
+       SET estado = 'PENDIENTE_CONFIRMACION_MUNICIPAL',
+           revision_motivo = NULL, revision_ventana_inicio = NULL, revision_ventana_fin = NULL
+           ${sets.length ? ',' + sets.join(', ') : ''}
+       WHERE id = $1 AND estado = 'EN_REVISION'
+         AND (usuario_id = $2 OR (empresa_id = $3::uuid AND $4::text = 'LOGISTICA'))
+       RETURNING id, estado, comuna_id, usuario_id, empresa_id, ventana_inicio, ventana_fin`,
+      [req.params.id, req.usuario.sub, req.usuario.empresa_id || null, req.usuario.rol, ...campos.map((c) => cambios[c])]
+    );
+
+    if (!rows[0]) {
+      return res.status(409).json({ error: 'La solicitud no existe, no es de tu empresa o no está en revisión' });
+    }
+
+    await bitacoraService.registrarEvento({
+      permisoId: rows[0].id,
+      comunaId: rows[0].comuna_id,
+      tipoEvento: 'CORRECCION_PERMISO',
+      detalle: { campos_modificados: campos },
+      actorId: req.usuario.sub,
+    });
+
+    emitirEventoSolicitud(req, 'solicitud:corregida', rows[0]);
+
+    res.json({
+      id: rows[0].id,
+      estado: rows[0].estado,
+      ventana_inicio: rows[0].ventana_inicio,
+      ventana_fin: rows[0].ventana_fin,
+    });
+  } catch (err) {
+    if (err.code === '23P01') {
+      return res.status(409).json({ error: 'El nuevo horario se solapa con otra solicitud en esa zona. Elige otro horario.' });
+    }
+    throw err;
+  }
+}
+
+// PATCH /api/permisos/:id/reevaluar-riesgo — reintenta la evaluación cuando el
+// microservicio de riesgo estaba caído al crear la solicitud (riesgo_pendiente).
+async function reevaluarRiesgo(req, res) {
+  if (!esUuid(req.params.id)) return res.status(400).json({ error: 'id inválido' });
+
+  const { rows } = await pool.query(
+    `SELECT id, estado, comuna_id, tipo_actividad, ventana_inicio, ST_AsGeoJSON(area)::json AS poligono
+     FROM permiso WHERE id = $1 AND comuna_id = $2`,
+    [req.params.id, req.usuario.comuna_id]
+  );
+  const permiso = rows[0];
+
+  if (!permiso) return res.status(404).json({ error: 'Permiso no encontrado' });
+
+  let evaluacion;
+  try {
+    evaluacion = await evaluarYRegistrar({
+      permisoId: permiso.id,
+      estado: permiso.estado,
+      poligono: permiso.poligono,
+      ventana_inicio: permiso.ventana_inicio,
+      tipo_actividad: permiso.tipo_actividad,
+    });
+  } catch (err) {
+    console.error(`No se pudo reevaluar el riesgo del permiso ${permiso.id}:`, err.message);
+    return res.status(503).json({ error: 'El servicio de riesgo no está disponible. Intenta de nuevo en unos minutos.' });
+  }
+
+  await pool.query('UPDATE permiso SET riesgo_pendiente = false WHERE id = $1 AND riesgo_pendiente = true', [permiso.id]);
+
+  await bitacoraService.registrarEvento({
+    permisoId: permiso.id,
+    comunaId: permiso.comuna_id,
+    tipoEvento: 'REEVALUACION_RIESGO',
+    detalle: { nivel: evaluacion.riesgo.nivel, score: evaluacion.riesgo.score },
+    actorId: req.usuario.sub,
+  });
+
+  res.json({ id: permiso.id, estado: evaluacion.estado, riesgo: evaluacion.riesgo, riesgo_pendiente: false });
+}
+
 module.exports = {
   crear,
   listar,
@@ -738,4 +1019,7 @@ module.exports = {
   generarQrToken,
   verificarQr,
   documento,
+  solicitarRevision,
+  corregir,
+  reevaluarRiesgo,
 };

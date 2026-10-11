@@ -32,14 +32,16 @@ BUFFER_RUTA_M = 5.5  # ancho del camión 2.5 m + conos 3 m, a cada lado
 FECHA = "2026-10-15"
 
 # nombre: (lat, lon, nivel, incidentes, risk_score) — ruta de 150 m E-O.
-# "riesgo medio" usa 57.53, no 55.07: ese punto cae en Recoleta, que tiene
-# factor de criminalidad real capturado (CEAD) sobre el promedio nacional
-# — ver app/services/calles_riesgo.py:datos_reales_cerca.
+# Valores de Semana 6 (RISK_TAU 3.5 + exposición vial por calle, ver
+# app/services/calles_riesgo.py y tests/test_escenarios.py). Salen de
+# `python scripts/generar_escenarios_demo.py --fecha 2026-10-15`.
+# "sin incidentes" ya no da 0.0: igual tiene la línea base de exposición de
+# las calles de Renca (sigue siendo nivel bajo).
 ESCENARIOS = {
-    "riesgo bajo": (-33.421799, -70.695054, "bajo", 1, 32.97),
-    "riesgo medio": (-33.403018, -70.643878, "medio", 1, 57.53),
-    "riesgo alto": (-33.460763, -70.667891, "alto", 2, 86.47),
-    "sin incidentes": (-33.4105, -70.6905, "bajo", 0, 0.0),
+    "riesgo bajo": (-33.48859, -70.651381, "bajo", 1, 31.19),
+    "riesgo medio": (-33.421799, -70.695054, "medio", 1, 38.58),
+    "riesgo alto": (-33.460763, -70.667891, "alto", 2, 76.03),
+    "sin incidentes": (-33.4105, -70.6905, "bajo", 0, 6.69),
 }
 
 
@@ -139,6 +141,53 @@ def main():
         status == 200 and all(cal["comuna"] == "SANTIAGO" for cal in c_santiago["calles"]),
         "filtro ?comuna=SANTIAGO funciona", f"{c_santiago.get('total_calles')} calles",
     )
+
+    print("\n5b. /calles-riesgo para el mapa de Santiago Centro (GeoJSON, hora, bbox, gzip)")
+    status, geo, ms = llamar(base, "/calles-riesgo?comuna=SANTIAGO&formato=geojson")
+    feats = geo.get("features", []) if status == 200 else []
+    res.check(
+        status == 200 and geo.get("type") == "FeatureCollection" and len(feats) > 0,
+        "formato=geojson devuelve una FeatureCollection", f"{len(feats)} calles ({ms:.0f} ms)",
+    )
+    if feats:
+        niveles = {}
+        for f in feats:
+            niveles[f["properties"]["nivel"]] = niveles.get(f["properties"]["nivel"], 0) + 1
+        res.check(
+            max(niveles.values()) / len(feats) <= 0.60,
+            "niveles de riesgo repartidos (ninguno pasa del 60 %)", str(niveles),
+        )
+        res.check(
+            all(f["properties"]["color"].startswith("#") for f in feats[:100]),
+            "cada calle trae su color listo para el mapa",
+        )
+        res.check(len(geo["metadata"]["leyenda"]) == 3, "trae leyenda de 3 niveles")
+    _, de_noche, _ = llamar(base, "/calles-riesgo?comuna=SANTIAGO&formato=geojson&hora=3")
+    _, en_punta, _ = llamar(base, "/calles-riesgo?comuna=SANTIAGO&formato=geojson&hora=8")
+    cong = lambda g: sum(f["properties"]["congestion_score"] for f in g.get("features", []))
+    res.check(0 < cong(de_noche) < cong(en_punta), "la congestión de noche es menor que en hora punta")
+    status, _, _ = llamar(base, "/calles-riesgo?bbox=esto,no,es,valido")
+    res.check(status == 422, "bbox inválido -> 422")
+    req = urllib.request.Request(
+        base + "/calles-riesgo?comuna=SANTIAGO&formato=geojson", headers={"Accept-Encoding": "gzip"}
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        peso = len(r.read())
+        res.check(r.headers.get("Content-Encoding") == "gzip", "la respuesta va comprimida (gzip)", f"{peso / 1000:.0f} KB")
+    status, h, _ = llamar(base, "/health")
+    res.check(status == 200 and "cobertura_calles" in h, "/health informa cobertura de calles", str(h.get("cobertura_calles")))
+
+    print("\n5c. /score en Santiago: calles afectadas y congestión por hora")
+    cuerpo_stgo = {"poligono": poligono_ruta_este_oeste(-33.4372, -70.6506, 150), "fecha": FECHA,
+                   "tipo_actividad": "PROGRAMADA"}
+    status, sc, _ = llamar(base, "/score", cuerpo_stgo)
+    res.check(status == 200 and sc.get("comuna_detectada") == "SANTIAGO", "detecta la comuna de Santiago")
+    res.check(0 < len(sc.get("calles_afectadas", [])) <= 5, "devuelve hasta 5 calles afectadas",
+              ", ".join(c["nombre"] for c in sc.get("calles_afectadas", [])[:3]))
+    res.check(sc.get("risk_score", 0) > 0, "una calle de Santiago no da riesgo 0 (línea base CEAD)", f"risk={sc.get('risk_score')}")
+    _, sc_noche, _ = llamar(base, "/score", {**cuerpo_stgo, "hora_inicio": 3})
+    res.check(sc_noche.get("congestion_score", 99) < sc.get("congestion_score", 0),
+              "con hora_inicio=3 la congestión baja respecto de la hora punta")
 
     print("\n6. /ranking-inspecciones (emergencia siempre primero, datos reales cuando hay)")
     obras = [

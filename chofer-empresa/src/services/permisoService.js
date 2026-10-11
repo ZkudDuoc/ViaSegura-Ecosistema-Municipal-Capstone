@@ -43,3 +43,11 @@ export function generarCodigoChofer(permisoId) {
 export function obtenerDocumento(permisoId) {
   return api.get(`/permisos/${permisoId}/documento`, { responseType: "blob" }).then((res) => res.data);
 }
+
+// La municipalidad pidió cambiar el horario o los datos (estado EN_REVISION).
+// La empresa corrige y la solicitud vuelve a PENDIENTE. datos (todos opcionales):
+// { ventana_inicio, ventana_fin (ambas juntas), altura_estimada_m, rut_ejecutor, vehiculo_id }.
+// 409 si el nuevo horario se solapa con otra solicitud.
+export function corregirPermiso(permisoId, datos = {}) {
+  return api.patch(`/permisos/${permisoId}/corregir`, datos).then((res) => res.data);
+}

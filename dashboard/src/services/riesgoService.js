@@ -1,11 +1,16 @@
-import axios from "axios";
+import api from "./api";
 
-// Servicio de riesgo (Módulo 3, Nicolás) — solo se consume, no se modifica.
-// En desarrollo se llama por el proxy de Vite (/riesgo → 127.0.0.1:8000).
-// En producción, VITE_RIESGO_API_URL apunta al proxy del Backend o a Render.
-const riesgoApi = axios.create({ baseURL: import.meta.env.VITE_RIESGO_API_URL ?? "/riesgo" });
+// Mapa de riesgo (Semana 6). El Backend hace de proxy del servicio de riesgo (con
+// caché de unos minutos): el dashboard nunca llama al servicio de Python directamente.
 
-// Tramos de calle reales (SECTRA) con riesgo y congestión, para pintar el mapa.
-export function obtenerCallesRiesgo(comuna) {
-  return riesgoApi.get("/calles-riesgo", { params: comuna ? { comuna } : {} }).then((res) => res.data);
+// Calles con su riesgo/congestión. Por defecto comuna=SANTIAGO y formato=geojson
+// (FeatureCollection con properties { calle_id, nombre, risk_score, nivel, congestion_score,
+// color... } y metadata { leyenda }). params: { comuna, metrica: "riesgo"|"congestion", hora, bbox, formato }.
+// 503 si el servicio de riesgo no responde.
+export function obtenerCallesRiesgo(params = {}) {
+  return api.get("/riesgo/calles", { params }).then((res) => res.data);
+}
+
+export function obtenerZonasRojas() {
+  return api.get("/riesgo/zonas-rojas").then((res) => res.data);
 }

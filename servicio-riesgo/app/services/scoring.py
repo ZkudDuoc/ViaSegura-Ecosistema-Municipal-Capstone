@@ -34,7 +34,14 @@ VENTANA_DIAS = 45
 # el comportamiento esperado. Con el TAU=6.0 original, "alto" era
 # prácticamente inalcanzable para una solicitud realista (0 casos en los
 # mismos 1500 simulados).
-RISK_TAU = 2.5
+#
+# Semana 6: TAU sube de 2.5 a 3.5 porque ahora la suma incluye la línea base
+# de exposición vial (BETA_EXPOSICION, ver config.py) y, en Santiago, el
+# factor CEAD (~1.46) multiplica todo: con 2.5 las rutas con incidentes
+# saturaban cerca de 100 y se perdía contraste. Calibrado con
+# scripts/calibrar_santiago.py sobre 300 rutas en Santiago Centro: ~62 %
+# bajo, ~29 % medio, ~9 % alto (antes 92 % daba 0.0).
+RISK_TAU = 3.5
 NIVEL_UMBRAL_BAJO_MEDIO = 34
 NIVEL_UMBRAL_MEDIO_ALTO = 67
 
@@ -62,6 +69,7 @@ BUFFER_BUSQUEDA_M = config.BUFFER_BUSQUEDA_M
 # saturación. El rango de "noche" y el multiplicador son un supuesto
 # documentado (el profesor no dio un criterio), configurables sin tocar
 # código — ver app/config.py.
+BETA_EXPOSICION = config.BETA_EXPOSICION
 NOCHE_HORA_INICIO = config.NOCHE_HORA_INICIO
 NOCHE_HORA_FIN = config.NOCHE_HORA_FIN
 PESO_NOCTURNO = config.PESO_NOCTURNO
@@ -177,6 +185,7 @@ def calcular_score(
     hora_inicio: int = 12,
     factor_criminalidad: float = 1.0,
     comuna: str | None = None,
+    exposicion_relativa: float = 0.0,
 ) -> dict:
     """`factor_criminalidad`: multiplicador real por comuna (CEAD, ver
     app/data/criminalidad_real.py), 1.0 = sin ajuste (neutro). El censo
@@ -185,7 +194,11 @@ def calcular_score(
     /ranking-inspecciones) la busca con
     calles_riesgo.datos_reales_cerca() y se la pasa ya calculada.
     `comuna`: solo para el texto de `explicacion` (no afecta el cálculo,
-    eso ya lo hizo `factor_criminalidad`)."""
+    eso ya lo hizo `factor_criminalidad`).
+    `exposicion_relativa`: línea base vial de la zona (1.0 = tramo típico de
+    su comuna; ver calles_riesgo.preparar_calles). Se suma a los incidentes
+    con peso BETA_EXPOSICION: así una calle muy transitada de una comuna con
+    más delitos no da 0 solo porque no haya un incidente puntual cerca."""
     buffer_aplicado_m = float(BUFFER_BUSQUEDA_M if buffer_m is None else buffer_m)
     poligono = _expandir_poligono(poligono, buffer_aplicado_m)
 
@@ -205,7 +218,7 @@ def calcular_score(
         .map(GRAVEDAD_PESOS)
         .fillna(0)
     )
-    suma_ponderada = float(pesos.sum())
+    suma_ponderada = float(pesos.sum()) + BETA_EXPOSICION * exposicion_relativa
 
     es_nocturno = _es_horario_nocturno(hora_inicio)
     if es_nocturno:
