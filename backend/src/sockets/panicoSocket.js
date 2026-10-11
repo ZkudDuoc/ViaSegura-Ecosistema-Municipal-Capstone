@@ -55,6 +55,8 @@ function registrarPanicoSocket(io) {
           // Cualquier usuario con cuenta: sala personal para eventos de sus
           // propias solicitudes (aprobada/rechazada/revocada, Semana 5 Bloque 2).
           socket.join(`usuario:${socket.usuario.sub}`);
+          // Y sala de su empresa (eventos de todas las solicitudes de la empresa).
+          if (socket.usuario.empresa_id) socket.join(`empresa:${socket.usuario.empresa_id}`);
         }
 
         if (ROLES_MUNICIPALES.includes(socket.usuario.rol)) {

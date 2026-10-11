@@ -14,7 +14,7 @@ function firmarToken(usuario) {
 }
 
 function verificarToken(token) {
-  return jwt.verify(token, process.env.JWT_SECRET);
+  return jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 }
 
 // Token firmado para el QR del permiso (Semana 5 Bloque 2): evita que el QR

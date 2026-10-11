@@ -1,7 +1,8 @@
 // Rate limiting simple por IP, en memoria (sin Redis: suficiente para un
-// capstone con un solo proceso Node). Usado para endpoints públicos que no
-// requieren JWT (ej. canje de código de chofer) y por eso son el blanco más
-// fácil de fuerza bruta.
+// capstone con un solo proceso Node). Usado en endpoints públicos que no
+// requieren JWT (login, registro, canje de código de chofer), que son el
+// blanco más fácil de fuerza bruta. Detrás de un proxy (Render) hay que
+// configurar `trust proxy` en app.js para que `req.ip` sea la IP real.
 function crearRateLimiter({ ventanaMs, maxIntentos, mensaje }) {
   const intentosPorIp = new Map();
 
@@ -23,6 +24,8 @@ function crearRateLimiter({ ventanaMs, maxIntentos, mensaje }) {
     }
 
     if (registro.cuenta >= maxIntentos) {
+      const segundos = Math.max(1, Math.ceil((registro.desde + ventanaMs - ahora) / 1000));
+      if (typeof res.set === 'function') res.set('Retry-After', String(segundos));
       return res.status(429).json({ error: mensaje || 'Demasiados intentos, intenta más tarde' });
     }
 

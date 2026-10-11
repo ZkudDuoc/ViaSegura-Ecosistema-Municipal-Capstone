@@ -10,7 +10,13 @@ function requireAuth(req, res, next) {
   const token = authHeader.split(' ')[1];
 
   try {
-    req.usuario = verificarToken(token);
+    const payload = verificarToken(token);
+    // Los tokens de QR y de código de chofer son de otro tipo: no sirven como
+    // sesión normal (solo requireAuthOCodigoChofer acepta el de código de chofer).
+    if (payload.tipo) {
+      return res.status(401).json({ error: 'Token inválido para esta operación' });
+    }
+    req.usuario = payload;
     next();
   } catch (err) {
     return res.status(401).json({ error: 'Token inválido o expirado' });

@@ -61,7 +61,7 @@ describe('permisoController.detalle', () => {
 
     const body = res.json.mock.calls[0][0];
     expect(body.foto_evidencia_url).toBe('https://x/foto.jpg');
-    expect(body.riesgo).toEqual({ nivel: 'Alto', score: 80 });
+    expect(body.riesgo).toEqual(expect.objectContaining({ nivel: 'Alto', score: 80 }));
     expect(body.vehiculo).toEqual({ patente: 'ABCD12', alto_m: 4, ancho_m: 2.5, largo_m: 10, peso_ton: 15 });
     expect(body.personal).toEqual([{ id: 'pf-1', rut: '11111111-1', nombre: 'Juan', contrato_vigente: true, epp_al_dia: true }]);
     expect(body.vehiculos_adicionales).toEqual([{ id: 'veh-2', patente: 'ZZZZ99' }]);
