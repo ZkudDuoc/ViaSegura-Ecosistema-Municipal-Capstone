@@ -1,0 +1,92 @@
+.trabajadores-botones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.trabajadores-filtros {
+  margin-bottom: 16px;
+}
+
+.trabajador.inactivo {
+  background: var(--color-bg);
+}
+
+.trabajador-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.trabajador-nombre {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.trabajador-vigencias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.trabajador-acciones {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.trabajador-acciones .btn-secondary {
+  padding: 10px;
+  min-height: 44px;
+}
+
+.btn-peligro {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.trabajadores-ver-mas {
+  margin-top: 16px;
+}
+
+.trabajador-form-botones {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.trabajador-form-aviso {
+  align-self: flex-start;
+}
+
+.importar-archivo {
+  margin-top: 12px;
+}
+
+.importar-archivo input[type="file"] {
+  padding: 10px;
+}
+
+.importar-confirmar {
+  margin-bottom: 12px;
+}
+
+.importar-reporte {
+  margin-bottom: 12px;
+}
+
+.importar-errores {
+  margin: 0 0 8px;
+  padding-left: 20px;
+  font-size: 14px;
+}
+
+@media (max-width: 480px) {
+  .trabajadores-botones {
+    grid-template-columns: 1fr;
+  }
+}

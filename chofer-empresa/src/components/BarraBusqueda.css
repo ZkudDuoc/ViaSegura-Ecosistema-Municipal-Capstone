@@ -1,0 +1,52 @@
+.barra-busqueda {
+  margin-bottom: 12px;
+}
+
+.barra-busqueda-etiqueta {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.barra-busqueda-campo {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.barra-busqueda-lupa {
+  position: absolute;
+  left: 12px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.barra-busqueda-campo input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px 92px 12px 42px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/* El navegador agrega su propia "x" en type=search: se oculta para no tener dos. */
+.barra-busqueda-campo input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.barra-busqueda-limpiar {
+  position: absolute;
+  right: 6px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-primary-dark);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}

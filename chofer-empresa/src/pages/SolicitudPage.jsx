@@ -7,9 +7,9 @@ import { listarVehiculos } from "../services/vehiculoService";
 import { getApiErrorMessage } from "../services/api";
 import { DISTANCIA_CONOS_M } from "../utils/geo";
 import { ESTADO_LABEL } from "../utils/formato";
-import { normalizarRut, validarRut } from "../utils/rut";
+import { validarRut } from "../utils/rut";
 import UbicacionPicker from "../components/UbicacionPicker";
-import PersonalEditor, { personaVacia } from "../components/PersonalEditor";
+import SelectorTrabajadores from "../components/SelectorTrabajadores";
 import "./paginas.css";
 
 const TIPOS_ACTIVIDAD = [
@@ -25,11 +25,11 @@ export default function SolicitudPage() {
   const [adicionalesIds, setAdicionalesIds] = useState([]);
   const [comunaId, setComunaId] = useState("");
   const [tipoActividad, setTipoActividad] = useState("PROGRAMADA");
-  const [rutEjecutor, setRutEjecutor] = useState(usuario?.rut ?? "");
+  const [rutEjecutor, setRutEjecutor] = useState(usuario?.empresa?.rut ?? usuario?.rut ?? "");
   const [ventanaInicio, setVentanaInicio] = useState("");
   const [ventanaFin, setVentanaFin] = useState("");
   const [areaCalculada, setAreaCalculada] = useState(null);
-  const [personal, setPersonal] = useState(() => [personaVacia("Chofer")]);
+  const [trabajadores, setTrabajadores] = useState([]);
 
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState(null);
@@ -53,8 +53,8 @@ export default function SolicitudPage() {
   const ventanaInvalida = ventanaInicio && ventanaFin && new Date(ventanaFin) <= new Date(ventanaInicio);
   const rutEjecutorInvalido = rutEjecutor.trim() !== "" && !validarRut(rutEjecutor);
 
-  const personalCompleto = personal.every((p) => p.nombre.trim() && validarRut(p.rut));
-  const hayChofer = personal.some((p) => p.cargo === "Chofer");
+  // Día en que termina el trabajo ("AAAA-MM-DD"): contra él se revisan contrato y EPP.
+  const diaTrabajo = (ventanaFin || ventanaInicio).slice(0, 10) || undefined;
 
   const formularioValido =
     vehiculo &&
@@ -64,9 +64,7 @@ export default function SolicitudPage() {
     ventanaInicio &&
     ventanaFin &&
     !ventanaInvalida &&
-    personal.length > 0 &&
-    personalCompleto &&
-    hayChofer;
+    trabajadores.length > 0;
 
   const handleVehiculo = (e) => {
     const nuevoId = e.target.value;
@@ -95,15 +93,9 @@ export default function SolicitudPage() {
         altura_estimada_m: Number(vehiculo.alto_m),
         vehiculo_id: vehiculo.id,
         vehiculos_ids: adicionalesIds,
-        // `cargo` todavía no se guarda en el Backend (falta la columna en
-        // personal_faena); se envía para que quede apenas exista.
-        personal: personal.map((p) => ({
-          nombre: p.nombre.trim(),
-          rut: normalizarRut(p.rut),
-          cargo: p.cargo,
-          contrato_vigente: p.contrato_vigente,
-          epp_al_dia: p.epp_al_dia,
-        })),
+        // El Backend copia a cada trabajador de la nómina en la solicitud,
+        // tal como está hoy (si después lo editan, la solicitud no cambia).
+        trabajadores_ids: trabajadores.map((t) => t.id),
       });
       setResultado(permiso);
     } catch (err) {
@@ -129,10 +121,22 @@ export default function SolicitudPage() {
           Estado: {ESTADO_LABEL[resultado.estado] ?? resultado.estado}
           {resultado.riesgo?.nivel ? ` · Riesgo: ${resultado.riesgo.nivel}` : ""}
         </p>
+        {resultado.advertencias?.length > 0 && (
+          <div className="persona-aviso">
+            <strong>Recuerda regularizar antes del trabajo:</strong>
+            <ul>
+              {resultado.advertencias.map((a) => (
+                <li key={`${a.tipo}-${a.rut}`}>
+                  {a.nombre ?? a.rut}: {a.tipo === "CONTRATO_VENCIDO" ? "contrato no vigente" : "EPP no vigente"}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <p className="subtitulo">
-          Cuando la municipalidad la apruebe, podrás iniciar el trabajo desde "Mis solicitudes".
+          Cuando la municipalidad la apruebe, genera el código del chofer desde el detalle de la solicitud.
         </p>
-        <Link to="/" className="btn-primary btn-accion">
+        <Link to="/solicitudes" className="btn-primary btn-accion">
           Ver mis solicitudes
         </Link>
         <button type="button" className="btn-secondary btn-accion" onClick={nuevaSolicitud}>
@@ -226,7 +230,7 @@ export default function SolicitudPage() {
         </div>
 
         <div className="campo">
-          <label htmlFor="rut">RUT del ejecutor (empresa o persona responsable)</label>
+          <label htmlFor="rut">RUT de la empresa responsable</label>
           <input
             id="rut"
             value={rutEjecutor}
@@ -259,12 +263,14 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <h2 className="paso-titulo">4. Personal a cargo</h2>
+        <h2 className="paso-titulo">4. Personal que va a terreno</h2>
         <p className="permiso-detalle">
-          Chofer y trabajadores que irán a terreno. Debe haber al menos un chofer.
+          Marca a las personas de tu nómina que irán al trabajo, incluido el chofer.{" "}
+          <Link to="/trabajadores" className="enlace">
+            Administrar trabajadores
+          </Link>
         </p>
-        <PersonalEditor personal={personal} onChange={setPersonal} />
-        {!hayChofer && <p className="texto-error">Falta indicar quién es el chofer.</p>}
+        <SelectorTrabajadores seleccionados={trabajadores} onChange={setTrabajadores} diaTrabajo={diaTrabajo} />
       </section>
 
       <section className="card paso">
@@ -302,7 +308,7 @@ export default function SolicitudPage() {
       </button>
       {!formularioValido && (
         <p className="permiso-detalle formulario-ayuda">
-          Para enviar: camión, ubicación, comuna, fechas y el personal con nombre y RUT válido.
+          Para enviar: camión, ubicación, comuna, RUT, fechas y al menos una persona del personal.
         </p>
       )}
     </form>
