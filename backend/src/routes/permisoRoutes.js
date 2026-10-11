@@ -18,6 +18,9 @@ const {
   generarQrToken,
   verificarQr,
   documento,
+  solicitarRevision,
+  corregir,
+  reevaluarRiesgo,
 } = require('../controllers/permisoController');
 const { generar: generarCodigoChofer } = require('../controllers/codigoChoferController');
 const inspeccionController = require('../controllers/inspeccionController');
@@ -33,6 +36,9 @@ router.get('/qr/:token', requireAuth, requireRole(...ROLES_MUNICIPALES), verific
 router.post('/', requireAuth, requireRole('CHOFER', 'LOGISTICA'), crear);
 router.patch('/:id/aprobar', requireAuth, requireRole(...ROLES_MUNICIPALES), aprobar);
 router.patch('/:id/activar', requireAuthOCodigoChofer, activar);
+router.patch('/:id/solicitar-revision', requireAuth, requireRole(...ROLES_MUNICIPALES), solicitarRevision);
+router.patch('/:id/corregir', requireAuth, requireRole('CHOFER', 'LOGISTICA'), corregir);
+router.patch('/:id/reevaluar-riesgo', requireAuth, requireRole(...ROLES_MUNICIPALES), reevaluarRiesgo);
 router.patch('/:id/rechazar', requireAuth, requireRole(...ROLES_MUNICIPALES), rechazar);
 router.patch('/:id/finalizar', requireAuth, requireRole('CHOFER', 'LOGISTICA'), finalizar);
 router.patch('/:id/revocar', requireAuth, requireRole(...ROLES_MUNICIPALES), revocar);

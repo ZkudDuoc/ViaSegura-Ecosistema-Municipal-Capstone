@@ -8,11 +8,17 @@ services:
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_ENV
+        value: production
       - key: DATABASE_URL
         sync: false
+      # Render genera un secreto aleatorio largo la primera vez.
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: RISK_SERVICE_URL
+        sync: false
+      # URLs de los frontends separadas por coma (dashboard, empresa, supervisor).
+      - key: CORS_ORIGINS
         sync: false
       - key: TWILIO_ACCOUNT_SID
         sync: false

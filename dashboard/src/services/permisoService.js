@@ -12,8 +12,7 @@ export function obtenerPermiso(id) {
   return api.get(`/permisos/${id}`).then((res) => res.data);
 }
 
-// comentario es opcional. PENDIENTE (Backend): el endpoint todavía no lo
-// guarda; se envía igual para que quede en la bitácora apenas lo soporte.
+// comentario es opcional: queda en la línea de tiempo (bitácora) junto con quién aprobó.
 export function aprobarPermiso(id, comentario) {
   return api.patch(`/permisos/${id}/aprobar`, { comentario }).then((res) => res.data);
 }
@@ -70,4 +69,20 @@ export function obtenerOperativo(id) {
 // PDF de aprobación/rechazo con sello municipal simulado y QR de verificación.
 export function obtenerDocumento(id) {
   return api.get(`/permisos/${id}/documento`, { responseType: "blob" }).then((res) => res.data);
+}
+
+// Aplazar horario / pedir revisión (Semana 6): la solicitud pasa a EN_REVISION y la
+// empresa recibe el aviso en vivo (socket "solicitud:en_revision"). Solo sobre una
+// solicitud pendiente o ya aprobada pero a futuro.
+// ventanaPropuesta opcional: { inicio, fin } (ISO).
+export function solicitarRevision(id, motivo, ventanaPropuesta) {
+  return api
+    .patch(`/permisos/${id}/solicitar-revision`, { motivo, ventana_propuesta: ventanaPropuesta })
+    .then((res) => res.data);
+}
+
+// Reintenta la evaluación de riesgo cuando el servicio estaba caído al crear la
+// solicitud (el permiso trae riesgo_pendiente: true). 503 si sigue caído.
+export function reevaluarRiesgo(id) {
+  return api.patch(`/permisos/${id}/reevaluar-riesgo`).then((res) => res.data);
 }

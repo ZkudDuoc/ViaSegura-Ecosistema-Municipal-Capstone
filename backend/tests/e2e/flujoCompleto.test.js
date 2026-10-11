@@ -9,7 +9,7 @@
 
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
 
-jest.mock('../../src/config/db', () => ({ query: jest.fn() }));
+jest.mock('../../src/config/db', () => ({ query: jest.fn(), connect: jest.fn() }));
 jest.mock('../../src/services/riskService', () => ({ evaluarRiesgo: jest.fn() }));
 
 const bcrypt = require('bcrypt');
@@ -19,10 +19,10 @@ const riskService = require('../../src/services/riskService');
 const app = require('../../src/app');
 
 const EMPRESA_ID = 'empresa-1';
-const COMUNA_ID = 'comuna-1';
+const COMUNA_ID = '3f2b8c1e-9d4a-4c7e-8b1a-2d5e6f7a8b9c';
 const CHOFER_ID = 'chofer-1';
 const OPERADOR_ID = 'operador-1';
-const VEHICULO_ID = 'vehiculo-1';
+const VEHICULO_ID = '11111111-2222-4333-8444-555555555555';
 const PERMISO_ID = 'permiso-1';
 const PATENTE = 'ABCD12';
 
@@ -38,19 +38,29 @@ describe('E2E: ciclo de vida completo de un permiso', () => {
   beforeEach(() => {
     pool.query.mockReset();
     riskService.evaluarRiesgo.mockReset();
+    // crear permiso usa una transacción: el cliente comparte el mismo mock de query.
+    pool.connect.mockResolvedValue({ query: pool.query, release: jest.fn() });
 
     pool.query.mockImplementation((text, params = []) => {
+      // ---- transacciones ----
+      if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(text)) return { rows: [] };
+
       // ---- auth ----
-      if (text.includes('SELECT * FROM usuario WHERE email')) {
+      if (text.includes('SELECT * FROM usuario WHERE lower(email)')) {
         return { rows: [{ id: CHOFER_ID, rol: 'CHOFER', empresa_id: EMPRESA_ID, comuna_id: null, password_hash: passwordHash }] };
       }
-      if (text.includes('FROM usuario WHERE id = $1') && text.includes('tipo_persona')) {
+      if (text.includes('FROM usuario u') && text.includes('tipo_persona')) {
         return { rows: [{ id: CHOFER_ID, rol: 'CHOFER', nombre: 'Juan Chofer', rut: '11111111-1', email: 'chofer@test.cl', empresa_id: EMPRESA_ID, comuna_id: null, tipo_persona: 'EMPRESA' }] };
       }
 
       // ---- vehiculo ----
       if (text.includes('INSERT INTO vehiculo')) {
         return { rows: [{ id: VEHICULO_ID, patente: params[0], alto_m: params[1], ancho_m: params[2], largo_m: params[3], peso_ton: params[4], empresa_id: params[5], usuario_id: params[6] }] };
+      }
+
+      // ---- pertenencia de vehículos al crear el permiso ----
+      if (text.includes('FROM vehiculo') && text.includes('ANY($1::uuid[])')) {
+        return { rows: params[0].map((id) => ({ id })) };
       }
 
       // ---- creación de permiso (fn_crear_permiso) ----
