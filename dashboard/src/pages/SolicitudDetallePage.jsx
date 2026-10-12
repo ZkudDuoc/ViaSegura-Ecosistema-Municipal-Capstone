@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import AreaMapa from "../components/AreaMapa";
 import RiesgoDetalle from "../components/RiesgoDetalle";
 import {
   obtenerPermiso,
