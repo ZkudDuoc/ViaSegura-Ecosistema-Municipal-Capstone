@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
-import {
-  crearVehiculo,
-  listarVehiculos,
-  actualizarVehiculo,
-  darDeBajaVehiculo,
-  esNoDisponible,
-} from "../services/vehiculoService";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { crearVehiculo, buscarVehiculos, actualizarVehiculo, darDeBajaVehiculo } from "../services/vehiculoService";
 import { getApiErrorMessage } from "../services/api";
+import useDebounce from "../hooks/useDebounce";
+import BarraBusqueda from "../components/BarraBusqueda";
 import "./paginas.css";
+
+const POR_PAGINA = 20;
 
 const CAMPOS_MEDIDAS = [
   { id: "alto_m", label: "Alto (m)", placeholder: "Ej: 4.2" },
@@ -17,7 +16,6 @@ const CAMPOS_MEDIDAS = [
 ];
 
 const FORM_VACIO = { patente: "", alto_m: "", ancho_m: "", largo_m: "", peso_ton: "" };
-const NO_DISPONIBLE = "Esta función todavía no está disponible en el servidor.";
 
 // Patente sin espacios ni guiones y en mayúsculas (ej. "ABCD12"), igual a
 // como la compara el Backend al validarla en terreno.
@@ -57,7 +55,7 @@ function CamposMedidas({ form, onCambio, prefijo }) {
   );
 }
 
-function TarjetaCamion({ vehiculo, onCambiado }) {
+function TarjetaCamion({ vehiculo, puedeEditar, onCambiado }) {
   const [editando, setEditando] = useState(false);
   const [form, setForm] = useState(null);
   const [guardando, setGuardando] = useState(false);
@@ -83,9 +81,9 @@ function TarjetaCamion({ vehiculo, onCambiado }) {
     try {
       await actualizarVehiculo(vehiculo.id, aNumeros(form));
       setEditando(false);
-      await onCambiado();
+      onCambiado(`Se guardaron los cambios del camión ${vehiculo.patente}.`);
     } catch (err) {
-      setError(esNoDisponible(err) ? NO_DISPONIBLE : getApiErrorMessage(err));
+      setError(getApiErrorMessage(err));
     } finally {
       setGuardando(false);
     }
@@ -96,9 +94,9 @@ function TarjetaCamion({ vehiculo, onCambiado }) {
     setError(null);
     try {
       await darDeBajaVehiculo(vehiculo.id);
-      await onCambiado();
+      onCambiado(`El camión ${vehiculo.patente} quedó dado de baja.`);
     } catch (err) {
-      setError(esNoDisponible(err) ? NO_DISPONIBLE : getApiErrorMessage(err));
+      setError(getApiErrorMessage(err));
     }
   };
 
@@ -106,7 +104,7 @@ function TarjetaCamion({ vehiculo, onCambiado }) {
     <li className="card">
       <div className="permiso-cabecera">
         <span className="patente">{vehiculo.patente}</span>
-        {!editando && (
+        {puedeEditar && !editando && (
           <div className="camion-acciones">
             <button type="button" className="btn-link" onClick={empezarEdicion}>
               Editar
@@ -143,34 +141,72 @@ function TarjetaCamion({ vehiculo, onCambiado }) {
 }
 
 export default function CamionesPage() {
+  const { usuario } = useAuth();
+  // Editar y dar de baja es solo para el administrador (LOGISTICA), igual que en el Backend.
+  const puedeEditar = usuario?.rol === "LOGISTICA";
+
   const [vehiculos, setVehiculos] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [siguiente, setSiguiente] = useState(null);
+  const [cargando, setCargando] = useState(true);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [errorLista, setErrorLista] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [mensaje, setMensaje] = useState(null);
+
   const [form, setForm] = useState(FORM_VACIO);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState(null);
-  const [exito, setExito] = useState(null);
 
-  const cargar = () =>
-    listarVehiculos()
-      .then(setVehiculos)
-      .catch((err) => setError(getApiErrorMessage(err)));
+  const q = useDebounce(busqueda.trim(), 300);
+  const consultaRef = useRef(0);
+
+  const cargar = useCallback(() => {
+    const consulta = ++consultaRef.current;
+    setCargando(true);
+    setErrorLista(null);
+    buscarVehiculos({ q: q || undefined, limit: POR_PAGINA })
+      .then((res) => {
+        if (consulta !== consultaRef.current) return;
+        setVehiculos(res.items);
+        setSiguiente(res.nextCursor);
+      })
+      .catch((err) => consulta === consultaRef.current && setErrorLista(getApiErrorMessage(err)))
+      .finally(() => consulta === consultaRef.current && setCargando(false));
+  }, [q]);
 
   useEffect(() => {
-    cargar().finally(() => setLoading(false));
-  }, []);
+    cargar();
+  }, [cargar]);
+
+  const verMas = async () => {
+    setCargandoMas(true);
+    try {
+      const res = await buscarVehiculos({ q: q || undefined, limit: POR_PAGINA, cursor: siguiente });
+      setVehiculos((lista) => [...lista, ...res.items]);
+      setSiguiente(res.nextCursor);
+    } catch (err) {
+      setErrorLista(getApiErrorMessage(err));
+    } finally {
+      setCargandoMas(false);
+    }
+  };
+
+  const alCambiar = (texto) => {
+    setMensaje(texto);
+    cargar();
+  };
 
   const actualizarCampo = (campo) => (e) => setForm((f) => ({ ...f, [campo]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    setExito(null);
+    setMensaje(null);
     setGuardando(true);
     try {
       const nuevo = await crearVehiculo({ patente: normalizarPatente(form.patente), ...aNumeros(form) });
-      setExito(`Camión ${nuevo.patente} registrado`);
       setForm(FORM_VACIO);
-      await cargar();
+      alCambiar(`Camión ${nuevo.patente} registrado.`);
     } catch (err) {
       setError(
         err?.response?.status === 409 ? "Ya existe un camión registrado con esa patente" : getApiErrorMessage(err)
@@ -182,43 +218,81 @@ export default function CamionesPage() {
 
   return (
     <div>
-      <h1>Mis camiones</h1>
+      <h1>Camiones</h1>
       <p className="subtitulo">Sus medidas se usan para calcular el área de trabajo de cada solicitud.</p>
 
-      <form className="card paso" onSubmit={handleSubmit}>
-        <h2 className="paso-titulo">Registrar camión</h2>
+      {puedeEditar && (
+        <form className="card paso" onSubmit={handleSubmit}>
+          <h2 className="paso-titulo">Registrar camión</h2>
 
-        <div className="campo">
-          <label htmlFor="patente">Patente</label>
-          <input
-            id="patente"
-            value={form.patente}
-            onChange={actualizarCampo("patente")}
-            placeholder="Ej: ABCD12"
-            autoCapitalize="characters"
-            required
-          />
-        </div>
+          <div className="campo">
+            <label htmlFor="patente">Patente</label>
+            <input
+              id="patente"
+              value={form.patente}
+              onChange={actualizarCampo("patente")}
+              placeholder="Ej: ABCD12"
+              autoCapitalize="characters"
+              required
+            />
+          </div>
 
-        <CamposMedidas form={form} onCambio={actualizarCampo} prefijo="nuevo" />
+          <CamposMedidas form={form} onCambio={actualizarCampo} prefijo="nuevo" />
 
-        {error && <p className="texto-error">{error}</p>}
-        {exito && <p className="texto-exito">{exito}</p>}
+          {error && <p className="texto-error">{error}</p>}
 
-        <button type="submit" className="btn-primary" disabled={guardando}>
-          {guardando ? "Guardando…" : "Registrar camión"}
-        </button>
-      </form>
+          <button type="submit" className="btn-primary" disabled={guardando}>
+            {guardando ? "Guardando…" : "Registrar camión"}
+          </button>
+        </form>
+      )}
 
       <h2 className="paso-titulo">Camiones registrados</h2>
-      {loading && <p className="subtitulo">Cargando…</p>}
-      {!loading && vehiculos.length === 0 && <div className="card vacio">Todavía no registras camiones.</div>}
 
-      <ul className="lista-permisos">
-        {vehiculos.map((v) => (
-          <TarjetaCamion key={v.id} vehiculo={v} onCambiado={cargar} />
-        ))}
-      </ul>
+      {mensaje && (
+        <p className="texto-exito" role="status">
+          {mensaje}
+        </p>
+      )}
+
+      <BarraBusqueda
+        id="buscar-camion"
+        valor={busqueda}
+        onCambio={setBusqueda}
+        placeholder="Patente, por ejemplo ABCD12"
+        etiqueta="Buscar camión"
+      />
+
+      {cargando && <p className="subtitulo">Cargando camiones…</p>}
+
+      {errorLista && (
+        <div className="card">
+          <p className="texto-error">No pudimos cargar los camiones. {errorLista}</p>
+          <button type="button" className="btn-secondary" onClick={cargar}>
+            Intentar de nuevo
+          </button>
+        </div>
+      )}
+
+      {!cargando && !errorLista && vehiculos.length === 0 && (
+        <div className="card vacio">
+          {q ? `No encontramos camiones con la patente "${q}".` : "Todavía no registras camiones."}
+        </div>
+      )}
+
+      {!cargando && vehiculos.length > 0 && (
+        <ul className="lista-permisos">
+          {vehiculos.map((v) => (
+            <TarjetaCamion key={v.id} vehiculo={v} puedeEditar={puedeEditar} onCambiado={alCambiar} />
+          ))}
+        </ul>
+      )}
+
+      {!cargando && siguiente && (
+        <button type="button" className="btn-secondary btn-accion" onClick={verMas} disabled={cargandoMas}>
+          {cargandoMas ? "Cargando…" : "Ver más camiones"}
+        </button>
+      )}
     </div>
   );
 }
