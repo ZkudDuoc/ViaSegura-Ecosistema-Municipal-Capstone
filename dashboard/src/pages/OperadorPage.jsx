@@ -210,7 +210,6 @@ export default function OperadorPage() {
           operativos={operativos}
           foco={foco}
           calles={capaCalles.features}
-          colorCallesPor={capaCalles.colorPor}
         />
       </div>
       <div className="operativos-leyenda">

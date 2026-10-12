@@ -321,3 +321,68 @@
 .link-detalle:hover {
   text-decoration: underline;
 }
+.detalle-riesgo-nivel {
+  margin: 0;
+}
+
+.detalle-riesgo-comuna {
+  color: var(--color-text-muted);
+}
+
+.detalle-riesgo p.detalle-riesgo-explicacion {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.detalle-riesgo-subtitulo {
+  margin: 12px 0 6px;
+  font-size: 13px;
+}
+
+.detalle-riesgo-calles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.detalle-riesgo-calles li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.detalle-riesgo-calles li:last-child {
+  border-bottom: none;
+}
+
+.detalle-riesgo-calle {
+  font-weight: 600;
+}
+
+.detalle-riesgo-fuente {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.btn-riesgo-recalcular {
+  margin-top: 8px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.texto-error-chico {
+  color: var(--color-danger);
+  font-size: 13px;
+}

@@ -1,163 +1,140 @@
-import { useEffect, useMemo, useState } from "react";
-import api from "../services/api";
+import { useEffect, useRef, useState } from "react";
 import { obtenerCallesRiesgo } from "../services/riesgoService";
-import { useAuth } from "../context/AuthContext";
+import { getApiErrorMessage } from "../services/api";
+import "./CallesRiesgoControl.css";
 
-// El dataset de calles pesa ~3 MB: solo se pide la primera vez que se activa la capa.
-function useCallesRiesgo(activa) {
-  const [estado, setEstado] = useState({ calles: [], fuente: null, cargando: false, error: null, cargadas: false });
+// Comuna principal del sistema: las calles vienen de SECTRA para Santiago Centro.
+const COMUNA = "SANTIAGO";
 
-  useEffect(() => {
-    if (!activa || estado.cargadas || estado.cargando) return;
-    setEstado((e) => ({ ...e, cargando: true, error: null }));
-    obtenerCallesRiesgo()
-      .then((r) => setEstado({ calles: r.calles, fuente: r.fuente_datos, cargando: false, error: null, cargadas: true }))
-      .catch((err) =>
-        setEstado((e) => ({
-          ...e,
-          cargando: false,
-          error: err?.response
-            ? "El servicio de riesgo respondió con un error."
-            : "No se pudo conectar con el servicio de riesgo (¿está corriendo en el puerto 8000?).",
-        }))
-      );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activa]);
+const METRICAS = [
+  { valor: "riesgo", label: "Riesgo" },
+  { valor: "congestion", label: "Congestión" },
+];
 
-  return estado;
-}
+const NIVEL_TEXTO = { bajo: "Bajo", medio: "Medio", alto: "Alto" };
 
-// Nombre de la comuna del operador, para filtrar sus calles por defecto.
-function useNombreComunaOperador() {
-  const { usuario } = useAuth();
-  const [nombre, setNombre] = useState(null);
+const horaTexto = (h) => `${String(h).padStart(2, "0")}:00 a ${String(h).padStart(2, "0")}:59`;
 
-  useEffect(() => {
-    if (!usuario?.comuna_id) return;
-    api
-      .get("/comunas")
-      .then((res) => setNombre(res.data.find((c) => c.id === usuario.comuna_id)?.nombre ?? null))
-      .catch(() => {});
-  }, [usuario?.comuna_id]);
-
-  return nombre;
-}
-
-function aFeatures(calles, comuna) {
-  return {
-    type: "FeatureCollection",
-    features: calles
-      .filter((c) => comuna === "TODAS" || c.comuna === comuna)
-      .map((c) => ({
-        type: "Feature",
-        geometry: c.geometry_geojson,
-        properties: {
-          nombre: c.nombre,
-          comuna: c.comuna ?? "",
-          riesgo: c.risk_score,
-          congestion: c.congestion_score,
-          flujo: c.flujo_vehicular_hora,
-          incidentes: c.n_incidentes,
-        },
-      })),
-  };
-}
-
-// Estado de la capa de calles: el control (casilla, filtros) y lo que se pinta en el mapa.
+// Estado de la capa de calles: qué se muestra y el GeoJSON que se pinta en el
+// mapa. Cada combinación métrica + hora se guarda al llegar, así cambiar de
+// una a otra y volver no vuelve a pedir ~1 MB al servidor.
 export function useCapaCalles() {
   const [activa, setActiva] = useState(false);
-  const [colorPor, setColorPor] = useState("riesgo");
-  const [comunaElegida, setComunaElegida] = useState(null);
-  const datos = useCallesRiesgo(activa);
-  const comunaOperador = useNombreComunaOperador();
+  const [metrica, setMetrica] = useState("riesgo");
+  // Por defecto la hora actual: el operador ve cómo están las calles ahora.
+  const [hora, setHora] = useState(() => String(new Date().getHours()));
+  const [datos, setDatos] = useState(null);
+  const [cargando, setCargando] = useState(false);
+  const [error, setError] = useState(null);
+  const guardadas = useRef(new Map());
 
-  const comunas = useMemo(
-    () => [...new Set(datos.calles.map((c) => c.comuna).filter(Boolean))].sort(),
-    [datos.calles]
-  );
+  useEffect(() => {
+    if (!activa) return;
+    const clave = `${metrica}|${hora}`;
+    if (guardadas.current.has(clave)) {
+      setDatos(guardadas.current.get(clave));
+      setError(null);
+      return;
+    }
 
-  // Por defecto, la comuna del operador si existe en los datos; si no, todas.
-  const comuna =
-    comunaElegida ?? comunas.find((c) => c.toUpperCase() === comunaOperador?.toUpperCase()) ?? "TODAS";
+    let vigente = true;
+    setCargando(true);
+    setError(null);
+    obtenerCallesRiesgo({ comuna: COMUNA, metrica, hora: hora === "" ? undefined : hora, formato: "geojson" })
+      .then((res) => {
+        guardadas.current.set(clave, res);
+        if (vigente) setDatos(res);
+      })
+      .catch((err) => {
+        if (!vigente) return;
+        setError(
+          err?.response
+            ? getApiErrorMessage(err)
+            : "No se pudo conectar con el servidor. Revisa tu conexión e intenta de nuevo."
+        );
+      })
+      .finally(() => vigente && setCargando(false));
 
-  const features = useMemo(
-    () => (activa && datos.cargadas ? aFeatures(datos.calles, comuna) : null),
-    [activa, datos.cargadas, datos.calles, comuna]
-  );
+    return () => {
+      vigente = false;
+    };
+  }, [activa, metrica, hora]);
 
   return {
-    control: {
-      activa,
-      setActiva,
-      colorPor,
-      setColorPor,
-      comuna,
-      setComuna: setComunaElegida,
-      comunas,
-      cargando: datos.cargando,
-      error: datos.error,
-      fuente: datos.fuente,
-      total: features?.features.length ?? 0,
-    },
-    features,
-    colorPor,
+    control: { activa, setActiva, metrica, setMetrica, hora, setHora, cargando, error, metadata: datos?.metadata ?? null },
+    // Mientras llega la combinación nueva se sigue viendo la anterior.
+    features: activa && datos ? datos : null,
   };
 }
 
-export default function CallesRiesgoControl({
-  activa,
-  setActiva,
-  colorPor,
-  setColorPor,
-  comuna,
-  setComuna,
-  comunas,
-  cargando,
-  error,
-  fuente,
-  total,
-}) {
+export default function CallesRiesgoControl({ activa, setActiva, metrica, setMetrica, hora, setHora, cargando, error, metadata }) {
   return (
-    <div className="calles-control">
-      <div className="calles-control-fila">
-        <label className="calles-toggle">
+    <section className="capa-calles" aria-label="Calles de Santiago Centro">
+      <div className="capa-calles-barra">
+        <label className="capa-calles-toggle">
           <input type="checkbox" checked={activa} onChange={(e) => setActiva(e.target.checked)} />
-          Mostrar calles por riesgo
+          Pintar calles de Santiago Centro
         </label>
 
         {activa && (
           <>
-            <select value={colorPor} onChange={(e) => setColorPor(e.target.value)} aria-label="Colorear calles por">
-              <option value="riesgo">Colorear por riesgo</option>
-              <option value="congestion">Colorear por congestión</option>
-            </select>
-            <select
-              value={comuna}
-              onChange={(e) => setComuna(e.target.value)}
-              aria-label="Comuna de las calles"
-              disabled={comunas.length === 0}
-            >
-              <option value="TODAS">Todas las comunas</option>
-              {comunas.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+            <div className="capa-calles-grupo" role="group" aria-label="Pintar según">
+              {METRICAS.map((m) => (
+                <button
+                  key={m.valor}
+                  type="button"
+                  className={"capa-calles-opcion" + (metrica === m.valor ? " activa" : "")}
+                  aria-pressed={metrica === m.valor}
+                  onClick={() => setMetrica(m.valor)}
+                >
+                  {m.label}
+                </button>
               ))}
-            </select>
-            <span className={error ? "calles-estado texto-error-chico" : "calles-estado"}>
-              {cargando ? "Cargando calles…" : error ?? `${total} tramos de calle`}
+            </div>
+
+            <label className="capa-calles-hora">
+              Hora
+              <select value={hora} onChange={(e) => setHora(e.target.value)}>
+                <option value="">Promedio del día</option>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={String(h)}>
+                    {horaTexto(h)}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <span className={"capa-calles-estado" + (error ? " error" : "")} role="status">
+              {cargando ? "Cargando calles…" : error ?? (metadata ? `${metadata.total} tramos de calle` : "")}
             </span>
           </>
         )}
       </div>
 
-      {activa && !cargando && !error && (
-        <div className="calles-leyenda">
-          <span className="leyenda-gradiente" />
-          <span>{colorPor === "riesgo" ? "Riesgo bajo → alto" : "Congestión baja → alta"}</span>
+      {activa && metadata?.leyenda && (
+        <div className="capa-calles-leyenda">
+          <span className="capa-calles-leyenda-titulo">
+            {metrica === "riesgo" ? "Riesgo de delitos por calle" : "Congestión vehicular por calle"}
+          </span>
+          <ul>
+            {metadata.leyenda.map((l) => (
+              <li key={l.nivel}>
+                <span className="capa-calles-color" style={{ background: l.color }} />
+                <strong>{NIVEL_TEXTO[l.nivel] ?? l.nivel}</strong>
+                <span className="capa-calles-rango">{l.rango}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="capa-calles-nota">
+            {metrica === "riesgo"
+              ? "Los niveles comparan cada calle con el resto de Santiago Centro. Toca una calle para ver su detalle."
+              : hora === ""
+                ? "Flujo promedio medido por SECTRA. Elige una hora para ver la estimación de ese momento."
+                : "Estimación para la hora elegida a partir del flujo medido por SECTRA. Toca una calle para ver su detalle."}
+          </p>
+          {metadata.fuente_datos && <p className="capa-calles-fuente">Fuente: {metadata.fuente_datos}</p>}
         </div>
       )}
-      {activa && fuente && <p className="calles-fuente">{fuente}</p>}
-    </div>
+    </section>
   );
 }

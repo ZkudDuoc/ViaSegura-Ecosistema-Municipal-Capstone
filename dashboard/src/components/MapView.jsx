@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./MapView.css";
@@ -16,7 +16,9 @@ const OSM_STYLE = {
   layers: [{ id: "osm", type: "raster", source: "osm" }],
 };
 
-const SANTIAGO_CENTER = [-70.6483, -33.4569];
+// Vista inicial: Santiago Centro, la comuna principal del sistema.
+const SANTIAGO_CENTRO = [-70.6505, -33.4489];
+const ZOOM_INICIAL = 13.5;
 const VACIO = { type: "FeatureCollection", features: [] };
 
 // "Servicio en operativo": el color y el tamaño dependen del progreso del
@@ -31,15 +33,10 @@ const RADIO_POR_PROGRESO = ["interpolate", ["linear"], ["get", "progreso"], 0, 8
 const PULSO_MS = 2000;
 const ZOOM_FOCO = 17;
 
-// Calles del servicio de riesgo: color por puntaje 0-100 (riesgo o congestión).
-function colorCalles(campo) {
-  return [
-    "interpolate", ["linear"], ["get", campo === "congestion" ? "congestion" : "riesgo"],
-    0, "#16a34a",
-    50, "#f59e0b",
-    100, "#dc2626",
-  ];
-}
+// Calles del servicio de riesgo: el color ya viene calculado por calle según
+// la métrica elegida (riesgo o congestión), con la misma escala de la leyenda.
+const COLOR_CALLE = ["coalesce", ["get", "color"], "#94a3b8"];
+const NIVEL_TEXTO = { bajo: "bajo", medio: "medio", alto: "alto" };
 
 function calcularProgreso(op, ahora) {
   const inicio = new Date(op.inicio).getTime();
@@ -83,17 +80,31 @@ function construirFeatures(operativos, ahora) {
   };
 }
 
+const numero = (valor) => (valor === null || valor === undefined || valor === "null" ? null : Number(valor));
+
 // Contenido del popup de una calle, armado con nodos de texto (no HTML) porque
-// los nombres vienen de un dataset externo.
+// los nombres vienen de un dataset externo. En palabras simples: nivel primero,
+// puntaje después.
 function contenidoCalle(p) {
   const contenedor = document.createElement("div");
+  contenedor.className = "popup-calle";
+  const riesgo = numero(p.risk_score);
+  const congestion = numero(p.congestion_score);
+  const flujo = numero(p.flujo_vehicular_hora);
   const lineas = [
-    [p.nombre, true],
-    [p.comuna, false],
-    [`Riesgo: ${Math.round(p.riesgo)} de 100`, false],
-    [`Congestión: ${Math.round(p.congestion)} de 100`, false],
-    [p.flujo != null && p.flujo !== "null" ? `Flujo: ${Math.round(p.flujo)} vehículos/hora` : null, false],
-    [`Incidentes cercanos: ${p.incidentes}`, false],
+    [p.nombre || "Calle sin nombre", true],
+    [p.comuna ? `Comuna: ${p.comuna === "SANTIAGO" ? "Santiago Centro" : p.comuna}` : null, false],
+    [
+      riesgo !== null ? `Riesgo de delitos: ${NIVEL_TEXTO[p.nivel] ?? p.nivel ?? "sin dato"} (${Math.round(riesgo)} de 100)` : null,
+      false,
+    ],
+    [
+      congestion !== null
+        ? `Congestión: ${NIVEL_TEXTO[p.nivel_congestion] ?? p.nivel_congestion ?? "sin dato"} (${Math.round(congestion)} de 100)`
+        : null,
+      false,
+    ],
+    [flujo !== null ? `Pasan unos ${Math.round(flujo).toLocaleString("es-CL")} vehículos por hora` : null, false],
   ];
   lineas.forEach(([texto, negrita]) => {
     if (!texto) return;
@@ -106,13 +117,14 @@ function contenidoCalle(p) {
 
 // `foco`: punto { lat, lng } a destacar (ej. una alerta de pánico). Cada vez
 // que cambia, el mapa vuela ahí y pone un marcador rojo.
-// `calles`: FeatureCollection de calles con riesgo (null = capa oculta).
-export default function MapView({ height = 420, operativos = [], foco = null, calles = null, colorCallesPor = "riesgo" }) {
+// `calles`: FeatureCollection de calles con riesgo, cada una con su `color`
+// (null = capa oculta).
+export default function MapView({ height = 420, operativos = [], foco = null, calles = null }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const operativosRef = useRef(operativos);
   const callesRef = useRef(calles);
-  const colorCallesRef = useRef(colorCallesPor);
+  const [mapaListo, setMapaListo] = useState(false);
   const listoRef = useRef(false);
   const encuadradoRef = useRef(false);
   const marcadorFocoRef = useRef(null);
@@ -144,15 +156,10 @@ export default function MapView({ height = 420, operativos = [], foco = null, ca
     const map = mapRef.current;
     if (!map || !listoRef.current) return;
     map.getSource("calles-riesgo")?.setData(calles ?? VACIO);
-    map.setLayoutProperty("calles-riesgo", "visibility", calles ? "visible" : "none");
+    ["calles-riesgo", "calles-riesgo-toque"].forEach((capa) =>
+      map.setLayoutProperty(capa, "visibility", calles ? "visible" : "none")
+    );
   }, [calles]);
-
-  useEffect(() => {
-    colorCallesRef.current = colorCallesPor;
-    const map = mapRef.current;
-    if (!map || !listoRef.current) return;
-    map.setPaintProperty("calles-riesgo", "line-color", colorCalles(colorCallesPor));
-  }, [colorCallesPor]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -168,8 +175,8 @@ export default function MapView({ height = 420, operativos = [], foco = null, ca
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: OSM_STYLE,
-      center: SANTIAGO_CENTER,
-      zoom: 11,
+      center: SANTIAGO_CENTRO,
+      zoom: ZOOM_INICIAL,
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -190,10 +197,19 @@ export default function MapView({ height = 420, operativos = [], foco = null, ca
         source: "calles-riesgo",
         layout: { "line-cap": "round", "line-join": "round", visibility: callesRef.current ? "visible" : "none" },
         paint: {
-          "line-color": colorCalles(colorCallesRef.current),
+          "line-color": COLOR_CALLE,
           "line-width": ["interpolate", ["linear"], ["zoom"], 11, 1.5, 16, 5],
           "line-opacity": 0.85,
         },
+      });
+      // Franja invisible y más ancha sobre cada calle: las líneas son delgadas
+      // y así es fácil tocarlas con el mouse o con el dedo.
+      map.addLayer({
+        id: "calles-riesgo-toque",
+        type: "line",
+        source: "calles-riesgo",
+        layout: { visibility: callesRef.current ? "visible" : "none" },
+        paint: { "line-width": 16, "line-opacity": 0 },
       });
 
       map.addSource("operativos-area", { type: "geojson", data: VACIO });
@@ -233,15 +249,18 @@ export default function MapView({ height = 420, operativos = [], foco = null, ca
           restanteMin >= 0 ? `Quedan ${restanteMin} min de servicio` : `Excedido por ${-restanteMin} min`;
         new maplibregl.Popup().setLngLat(e.lngLat).setText(texto).addTo(map);
       });
-      map.on("click", "calles-riesgo", (e) => {
+      map.on("click", "calles-riesgo-toque", (e) => {
+        // Si se tocó un servicio activo, gana su popup (está encima de la calle).
+        if (map.queryRenderedFeatures(e.point, { layers: ["operativos-centro"] }).length) return;
         new maplibregl.Popup().setLngLat(e.lngLat).setDOMContent(contenidoCalle(e.features[0].properties)).addTo(map);
       });
-      ["operativos-centro", "calles-riesgo"].forEach((capa) => {
+      ["operativos-centro", "calles-riesgo-toque"].forEach((capa) => {
         map.on("mouseenter", capa, () => (map.getCanvas().style.cursor = "pointer"));
         map.on("mouseleave", capa, () => (map.getCanvas().style.cursor = ""));
       });
 
       listoRef.current = true;
+      setMapaListo(true);
       actualizarDatos();
       if (operativosRef.current.length) encuadradoRef.current = encuadrarOperativos();
     });
@@ -261,9 +280,16 @@ export default function MapView({ height = 420, operativos = [], foco = null, ca
     // El progreso (color/tamaño) avanza en vivo aunque el Backend no haya respondido de nuevo.
     const intervalo = setInterval(actualizarDatos, 1000);
 
+    // MapLibre solo se reajusta cuando cambia la ventana; si cambia solo el
+    // contenedor (o el mapa se creó antes de que la página tuviera su ancho
+    // final), el lienzo quedaría cortado.
+    const observador = new ResizeObserver(() => map.resize());
+    observador.observe(containerRef.current);
+
     return () => {
       cancelAnimationFrame(frame);
       clearInterval(intervalo);
+      observador.disconnect();
       listoRef.current = false;
       encuadradoRef.current = false;
       marcadorFocoRef.current = null;
@@ -275,6 +301,11 @@ export default function MapView({ height = 420, operativos = [], foco = null, ca
   return (
     <div className="mapa-contenedor" style={{ height }}>
       <div ref={containerRef} className="mapa-lienzo" />
+      {!mapaListo && (
+        <div className="mapa-cargando" role="status">
+          Cargando mapa…
+        </div>
+      )}
       {operativos.length > 0 && (
         <button type="button" className="mapa-centrar" onClick={encuadrarOperativos}>
           Ver servicios activos

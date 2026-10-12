@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import AreaMapa from "../components/AreaMapa";
+import RiesgoDetalle from "../components/RiesgoDetalle";
 import {
   obtenerPermiso,
   aprobarPermiso,
@@ -348,20 +348,7 @@ export default function SolicitudDetallePage() {
           </dl>
 
           <h3 className="detalle-subtitulo">Riesgo</h3>
-          {permiso.riesgo ? (
-            <p className="detalle-riesgo">
-              <strong>{permiso.riesgo.nivel}</strong> · puntaje {Number(permiso.riesgo.score).toFixed(2)}
-              {permiso.riesgo.explicacion ? (
-                <span className="detalle-riesgo-explicacion">{permiso.riesgo.explicacion}</span>
-              ) : (
-                <span className="detalle-riesgo-explicacion">
-                  La explicación del puntaje estará disponible cuando el servicio de riesgo la entregue.
-                </span>
-              )}
-            </p>
-          ) : (
-            <p className="detalle-vacio">Sin evaluación de riesgo.</p>
-          )}
+            <RiesgoDetalle permiso={permiso} onActualizado={cargar} />
         </section>
 
         <section className="detalle-card">

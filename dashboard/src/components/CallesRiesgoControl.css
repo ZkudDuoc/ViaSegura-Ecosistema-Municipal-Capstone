@@ -1,0 +1,134 @@
+.capa-calles {
+  margin: 12px 0 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface);
+}
+
+.capa-calles-barra {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+
+.capa-calles-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.capa-calles-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+.capa-calles-grupo {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.capa-calles-opcion {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: none;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.capa-calles-opcion + .capa-calles-opcion {
+  border-left: 1px solid var(--color-border);
+}
+
+.capa-calles-opcion.activa {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.capa-calles-hora {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.capa-calles-hora select {
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.capa-calles-estado {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.capa-calles-estado.error {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.capa-calles-leyenda {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.capa-calles-leyenda-titulo {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.capa-calles-leyenda ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.capa-calles-leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.capa-calles-color {
+  width: 28px;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.capa-calles-rango {
+  color: var(--color-text-muted);
+}
+
+.capa-calles-nota {
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+}
+
+.capa-calles-fuente {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
