@@ -148,7 +148,9 @@ export default function RegistroPage() {
   const cambiar = (campo) => (e) => {
     const valor = e.target.value;
     setForm((f) => ({ ...f, [campo]: valor }));
-    setErroresServidor((errs) => ({ ...errs, [campo]: undefined }));
+    // Se borra la clave (no se deja en undefined): si quedara, taparía el error
+    // de validación del campo al combinar los dos objetos de errores.
+    setErroresServidor(({ [campo]: _borrado, ...resto }) => resto);
   };
   const tocar = (campo) => () => setTocados((t) => ({ ...t, [campo]: true }));
   const formatearAlSalir = (campo) => () => {
