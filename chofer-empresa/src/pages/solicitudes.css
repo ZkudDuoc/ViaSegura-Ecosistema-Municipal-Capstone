@@ -1,0 +1,115 @@
+.encabezado-fila .solicitudes-nueva {
+  width: auto;
+  padding: 10px 16px;
+  text-align: center;
+}
+
+/* Filtros rápidos: botones que se acomodan en varias líneas. */
+.filtro-grupo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.filtro-chip {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filtro-chip:hover {
+  border-color: var(--color-primary);
+}
+
+.filtro-chip.activo {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+/* Tabla: en escritorio son columnas; en el celular cada fila es una tarjeta. */
+.tabla-solicitudes {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.tabla-fila {
+  display: grid;
+  grid-template-columns: 0.9fr 0.9fr 1.6fr 1.2fr 0.9fr 0.8fr;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.tabla-fila:last-child {
+  border-bottom: none;
+}
+
+a.tabla-fila:hover,
+a.tabla-fila:focus-visible {
+  background: #eef4ff;
+}
+
+.tabla-cabecera {
+  background: var(--color-bg);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.celda-codigo {
+  font-family: ui-monospace, Consolas, monospace;
+  font-weight: 700;
+}
+
+.celda-fechas {
+  display: flex;
+  flex-direction: column;
+}
+
+.celda-secundaria {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.solicitudes-ver-mas {
+  margin-top: 16px;
+}
+
+@media (max-width: 760px) {
+  .tabla-cabecera {
+    display: none;
+  }
+
+  .tabla-fila {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "codigo estado"
+      "fechas fechas"
+      "patente multas"
+      "riesgo riesgo";
+    gap: 6px 10px;
+    padding: 14px;
+  }
+
+  .tabla-fila > :nth-child(1) { grid-area: codigo; }
+  .tabla-fila > :nth-child(2) { grid-area: patente; }
+  .tabla-fila > :nth-child(3) { grid-area: fechas; }
+  .tabla-fila > :nth-child(4) { grid-area: estado; justify-self: end; }
+  .tabla-fila > :nth-child(5) { grid-area: riesgo; font-size: 13px; color: var(--color-text-muted); }
+  .tabla-fila > :nth-child(6) { grid-area: multas; justify-self: end; }
+}

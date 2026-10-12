@@ -1,0 +1,158 @@
+.graficos-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.graficos-cabecera .paso-titulo {
+  margin: 0;
+}
+
+.graficos-agrupar {
+  display: flex;
+  gap: 6px;
+}
+
+.graficos-dato {
+  font-size: 15px;
+  margin: 4px 0 16px;
+}
+
+.graficos-grilla {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.grafico {
+  margin: 0;
+  min-width: 0;
+}
+
+.grafico figcaption {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 10px;
+}
+
+.grafico-titulo {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.grafico-descripcion {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.grafico-vacio {
+  font-size: 14px;
+  color: var(--color-text-muted);
+  padding: 24px 0;
+  text-align: center;
+  background: var(--color-bg);
+  border-radius: 10px;
+  margin: 0;
+}
+
+/* Barras verticales hechas con CSS: cada columna = un período. */
+.barras {
+  display: grid;
+  align-items: end;
+  gap: 4px;
+  height: 160px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+}
+
+.barra-columna {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.barra {
+  width: 100%;
+  max-width: 36px;
+  min-height: 2px;
+  border-radius: 4px 4px 0 0;
+}
+
+.barra-valor {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.barra-etiqueta {
+  position: absolute;
+  bottom: -20px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* Anillo */
+.anillo-contenido {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.anillo {
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.anillo-total {
+  font-size: 9px;
+  font-weight: 700;
+  fill: var(--color-text);
+}
+
+.leyenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.leyenda li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.leyenda-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.leyenda-nombre {
+  flex: 1;
+}
+
+.leyenda-valor {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .graficos-grilla {
+    grid-template-columns: 1fr;
+  }
+}

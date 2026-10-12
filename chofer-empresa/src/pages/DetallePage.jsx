@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import AreaMapa from "../components/AreaMapa";
-import { obtenerPermiso, obtenerDocumento, generarCodigoChofer } from "../services/permisoService";
+import { obtenerPermiso, obtenerDocumento, generarCodigoChofer, corregirPermiso } from "../services/permisoService";
+import { listarMultasDeSolicitud } from "../services/empresaPanelService";
 import { getApiErrorMessage } from "../services/api";
 import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../utils/formato";
+import { formatearRut } from "../utils/rut";
 import "./paginas.css";
 import "./detalle.css";
 
@@ -44,6 +46,14 @@ function describirEvento(evento) {
       if (d.estado_nuevo === "EN_COLA_ESPERA") return { titulo: "En cola de espera", tono: "alerta" };
       if (d.estado_nuevo === "EXPIRADO") return { titulo: "Servicio expirado", tono: "neutro" };
       return null;
+    case "SOLICITUD_REVISION":
+      return {
+        titulo: "La municipalidad pidió cambiar el horario",
+        detalle: d.motivo ? `Motivo: ${d.motivo}` : null,
+        tono: "alerta",
+      };
+    case "CORRECCION_PERMISO":
+      return { titulo: "Corregiste la solicitud y volvió a revisión", tono: "neutro" };
     case "APROBACION_PERMISO":
       return { titulo: "Aprobada por la municipalidad", detalle: d.comentario ?? null, tono: "ok" };
     case "RECHAZO_PERMISO":
@@ -166,20 +176,160 @@ function CodigoChofer({ permisoId }) {
   );
 }
 
+// "2026-10-11T18:30" para un <input type="datetime-local"> (hora local).
+function aInputLocal(iso) {
+  if (!iso) return "";
+  const f = new Date(iso);
+  const dos = (n) => String(n).padStart(2, "0");
+  return `${f.getFullYear()}-${dos(f.getMonth() + 1)}-${dos(f.getDate())}T${dos(f.getHours())}:${dos(f.getMinutes())}`;
+}
+
+// La municipalidad pidió cambiar el horario (estado EN_REVISION): se muestra
+// su motivo y el formulario para corregir. Al guardar vuelve a "Pendiente".
+function CorregirHorario({ permiso, onCorregido }) {
+  const propuesta = permiso.revision_ventana_inicio
+    ? { inicio: permiso.revision_ventana_inicio, fin: permiso.revision_ventana_fin }
+    : null;
+  const [inicio, setInicio] = useState(aInputLocal(propuesta?.inicio ?? permiso.ventana_inicio));
+  const [fin, setFin] = useState(aInputLocal(propuesta?.fin ?? permiso.ventana_fin));
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState(null);
+
+  const finAntes = inicio && fin && new Date(fin) <= new Date(inicio);
+  const enElPasado = inicio && new Date(inicio) < new Date();
+  const valido = inicio && fin && !finAntes && !enElPasado;
+
+  const guardar = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setGuardando(true);
+    try {
+      await corregirPermiso(permiso.id, {
+        ventana_inicio: new Date(inicio).toISOString(),
+        ventana_fin: new Date(fin).toISOString(),
+      });
+      onCorregido();
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <section className="card paso revision" aria-labelledby="titulo-revision">
+      <h2 id="titulo-revision" className="paso-titulo">
+        La municipalidad te pide cambiar el horario
+      </h2>
+      <p className="revision-motivo">
+        <strong>Motivo:</strong> {permiso.revision_motivo ?? "No se indicó motivo."}
+      </p>
+      {propuesta && (
+        <p className="permiso-detalle">
+          Horario que propone la municipalidad: {formatearFecha(propuesta.inicio)} hasta {formatearFecha(propuesta.fin)}.
+          Ya lo dejamos escrito abajo; puedes cambiarlo si no te sirve.
+        </p>
+      )}
+
+      <form onSubmit={guardar}>
+        <div className="fila-campos">
+          <div className="campo">
+            <label htmlFor="nuevo-inicio">Nuevo inicio</label>
+            <input id="nuevo-inicio" type="datetime-local" value={inicio} onChange={(e) => setInicio(e.target.value)} required />
+          </div>
+          <div className="campo">
+            <label htmlFor="nuevo-fin">Nuevo fin</label>
+            <input id="nuevo-fin" type="datetime-local" value={fin} onChange={(e) => setFin(e.target.value)} required />
+          </div>
+        </div>
+        {finAntes && <p className="texto-error">El fin debe ser posterior al inicio.</p>}
+        {enElPasado && <p className="texto-error">El nuevo inicio ya pasó: elige una fecha futura.</p>}
+        {error && <p className="texto-error">{error}</p>}
+
+        <button type="submit" className="btn-primary" disabled={!valido || guardando}>
+          {guardando ? "Enviando…" : "Corregir horario y reenviar"}
+        </button>
+        <p className="permiso-detalle formulario-ayuda">
+          La solicitud vuelve a quedar "Pendiente" hasta que la municipalidad la revise de nuevo.
+        </p>
+      </form>
+    </section>
+  );
+}
+
+// Multas que cursaron los supervisores a este servicio, con su foto.
+function MultasDelServicio({ permisoId }) {
+  const [multas, setMultas] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    listarMultasDeSolicitud(permisoId)
+      .then(setMultas)
+      .catch((err) => setError(getApiErrorMessage(err)));
+  }, [permisoId]);
+
+  return (
+    <section className="card paso" aria-labelledby="titulo-multas">
+      <h2 id="titulo-multas" className="paso-titulo">
+        Multas
+      </h2>
+      {error && <p className="texto-error">No pudimos cargar las multas. {error}</p>}
+      {!error && multas === null && <p className="permiso-detalle">Cargando multas…</p>}
+      {multas?.length === 0 && <p className="permiso-detalle">Este servicio no tiene multas.</p>}
+      {multas?.length > 0 && (
+        <ul className="multas-lista">
+          {multas.map((m) => (
+            <li key={m.id} className="multa">
+              {m.evidencia_url && (
+                <a href={m.evidencia_url} target="_blank" rel="noreferrer" className="multa-foto">
+                  <img src={m.evidencia_url} alt="Foto de la multa" loading="lazy" />
+                </a>
+              )}
+              <div className="multa-datos">
+                <strong>{m.descripcion}</strong>
+                <span className="permiso-detalle">
+                  {formatearFecha(m.fecha)} · RUT {formatearRut(m.rut_infractor)}
+                  {m.inspector ? ` · Supervisor: ${m.inspector}` : ""}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function DetallePage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [permiso, setPermiso] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [descargando, setDescargando] = useState(false);
   const [errorPdf, setErrorPdf] = useState(null);
 
+  const cargar = useCallback(
+    () =>
+      obtenerPermiso(id)
+        .then(setPermiso)
+        .catch((err) => setError(getApiErrorMessage(err)))
+        .finally(() => setCargando(false)),
+    [id]
+  );
+
   useEffect(() => {
-    obtenerPermiso(id)
-      .then(setPermiso)
-      .catch((err) => setError(getApiErrorMessage(err)))
-      .finally(() => setCargando(false));
-  }, [id]);
+    cargar();
+  }, [cargar]);
+
+  // Volver con el botón conserva los filtros del historial; si se entró
+  // directo al detalle (sin historial), va a la lista.
+  const volver = () => (location.key !== "default" ? navigate(-1) : navigate("/solicitudes"));
+  const enlaceVolver = (
+    <button type="button" className="btn-link detalle-volver" onClick={volver}>
+      ← Volver a solicitudes
+    </button>
+  );
 
   const descargarDocumento = async () => {
     setErrorPdf(null);
@@ -204,9 +354,7 @@ export default function DetallePage() {
   if (!permiso) {
     return (
       <div>
-        <Link to="/" className="enlace">
-          ← Mis solicitudes
-        </Link>
+        {enlaceVolver}
         <h1>Solicitud no encontrada</h1>
         <p className="texto-error">{error ?? "La solicitud no existe."}</p>
       </div>
@@ -221,9 +369,7 @@ export default function DetallePage() {
 
   return (
     <div>
-      <Link to="/" className="enlace">
-        ← Mis solicitudes
-      </Link>
+      {enlaceVolver}
 
       <div className="encabezado-fila detalle-encabezado">
         <h1>Solicitud {permiso.id.slice(0, 8).toUpperCase()}</h1>
@@ -244,6 +390,8 @@ export default function DetallePage() {
           <span>{motivo ? `Motivo: ${motivo}` : "No se indicó motivo."}</span>
         </div>
       )}
+
+      {permiso.estado === "EN_REVISION" && <CorregirHorario permiso={permiso} onCorregido={cargar} />}
 
       {ESTADOS_CON_DOCUMENTO.includes(permiso.estado) && (
         <>
@@ -286,6 +434,13 @@ export default function DetallePage() {
         </dl>
       </section>
 
+      {permiso.riesgo?.explicacion && (
+        <section className="card paso">
+          <h2 className="paso-titulo">Por qué este nivel de riesgo</h2>
+          <p className="detalle-explicacion">{permiso.riesgo.explicacion}</p>
+        </section>
+      )}
+
       <section className="card paso">
         <h2 className="paso-titulo">Área de trabajo</h2>
         <AreaMapa area={permiso.area} height={240} />
@@ -299,7 +454,10 @@ export default function DetallePage() {
               <li key={p.id}>
                 <div>
                   <strong>{p.nombre ?? "Sin nombre"}</strong>
-                  <span className="permiso-detalle">{p.rut}</span>
+                  <span className="permiso-detalle">
+                    {formatearRut(p.rut)}
+                    {p.cargo ? ` · ${p.cargo}` : ""}
+                  </span>
                 </div>
                 <div className="detalle-indicadores">
                   <span className={"indicador " + (p.contrato_vigente ? "ok" : "no")}>
@@ -334,6 +492,8 @@ export default function DetallePage() {
           <p className="permiso-detalle">No se declararon vehículos.</p>
         )}
       </section>
+
+      <MultasDelServicio permisoId={permiso.id} />
 
       <section className="card paso">
         <h2 className="paso-titulo">Historial</h2>

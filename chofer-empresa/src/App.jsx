@@ -5,7 +5,7 @@ import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RegistroPage from "./pages/RegistroPage";
 import InicioPage from "./pages/InicioPage";
-import HomePage from "./pages/HomePage";
+import SolicitudesPage from "./pages/SolicitudesPage";  
 import SolicitudPage from "./pages/SolicitudPage";
 import DetallePage from "./pages/DetallePage";
 import CamionesPage from "./pages/CamionesPage";
@@ -45,8 +45,7 @@ export default function App() {
             }
           >
             <Route index element={<InicioPage />} />
-            {/* Lista simple por ahora; en el punto 3 pasa a ser el historial con filtros y gráficos. */}
-            <Route path="/solicitudes" element={<HomePage />} />
+            <Route path="/solicitudes" element={<SolicitudesPage />} />
             <Route path="/solicitud" element={<SolicitudPage />} />
             <Route path="/camiones" element={<CamionesPage />} />
             <Route path="/trabajadores" element={<TrabajadoresPage />} />
