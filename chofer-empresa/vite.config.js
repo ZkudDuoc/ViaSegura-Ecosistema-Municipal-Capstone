@@ -30,4 +30,9 @@ export default defineConfig({
     }),
   ],
   server: { port: 5174, host: "127.0.0.1" },
+    // Pruebas (npm test): simulan un navegador con jsdom.
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.js",
+  },
 });

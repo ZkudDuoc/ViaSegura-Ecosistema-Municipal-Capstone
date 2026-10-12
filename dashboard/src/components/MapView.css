@@ -29,3 +29,25 @@
 .mapa-centrar:hover {
   background: var(--color-bg);
 }
+.mapa-cargando {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.popup-calle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.popup-calle strong {
+  font-size: 14px;
+}

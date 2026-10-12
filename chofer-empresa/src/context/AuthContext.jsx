@@ -6,8 +6,8 @@ const AuthContext = createContext(null);
 
 const TOKEN_KEY = "viasegura_chofer_token";
 
-// Web para el lado "privado": choferes y personal de logística, tanto de
-// empresas como personas naturales. Los roles municipales usan el dashboard.
+// Web para el lado "privado": choferes y personal de logística de empresas.
+// Los roles municipales usan el dashboard.
 const ROLES_PERMITIDOS = ["CHOFER", "LOGISTICA"];
 
 function leerToken() {
@@ -78,6 +78,15 @@ export function AuthProvider({ children }) {
     guardarToken(data.token);
   }, []);
 
+  // El login no trae los datos de la empresa (nombre, RUT): se piden a
+  // /auth/me apenas hay sesión. Si falla, la sesión sigue igual.
+  const completarPerfil = useCallback(() => {
+    authService
+      .me()
+      .then(setUsuario)
+      .catch(() => {});
+  }, []);
+
   const login = useCallback(
     async (email, password) => {
       setLoading(true);
@@ -88,6 +97,7 @@ export function AuthProvider({ children }) {
           throw new Error("Esta cuenta no es de chofer ni de empresa");
         }
         abrirSesion(data);
+        completarPerfil();
         return data;
       } catch (err) {
         const message = err.response ? getApiErrorMessage(err) : err.message;
@@ -97,7 +107,7 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }
     },
-    [abrirSesion]
+    [abrirSesion, completarPerfil]
   );
 
   // Crea la cuenta y deja la sesión iniciada con el token que devuelve el Backend.
@@ -108,6 +118,7 @@ export function AuthProvider({ children }) {
       try {
         const data = await authService.registrar(datos);
         abrirSesion(data);
+        completarPerfil();
         return data;
       } catch (err) {
         const message =
@@ -122,14 +133,28 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }
     },
-    [abrirSesion]
+    [abrirSesion, completarPerfil]
   );
+  
+  // Registro de una empresa nueva y su usuario administrador. Deja la sesión
+  // iniciada. Los errores se lanzan tal cual: la página los ubica en el paso
+  // y el campo que corresponde.
+  const registrarEmpresa = useCallback(
+    async (datos) => {
+      const data = await authService.registrarEmpresa(datos);
+      abrirSesion(data);
+      completarPerfil();
+      return data;
+    },
+    [abrirSesion, completarPerfil]
+  );
+
 
   const limpiarError = useCallback(() => setError(null), []);
 
   return (
     <AuthContext.Provider
-      value={{ usuario, token, verificando, loading, error, login, registrar, logout, limpiarError }}
+          value={{ usuario, token, verificando, loading, error, login, registrar, registrarEmpresa, logout, limpiarError }}
     >
       {children}
     </AuthContext.Provider>

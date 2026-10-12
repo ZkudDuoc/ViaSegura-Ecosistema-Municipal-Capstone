@@ -1,0 +1,104 @@
+.registro-card {
+  max-width: 520px;
+}
+
+/* Indicador de pasos: 1 Empresa · 2 Representante · 3 Cuenta */
+.registro-pasos {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 0;
+  margin: 0 0 20px;
+}
+
+.registro-paso {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.registro-paso-numero {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.registro-paso.actual {
+  color: var(--color-primary-dark);
+  font-weight: 700;
+}
+
+.registro-paso.actual .registro-paso-numero {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.registro-paso.listo .registro-paso-numero {
+  border-color: var(--color-success);
+  background: #e1f5ea;
+  color: #13774a;
+}
+
+.registro-titulo {
+  outline: none;
+}
+
+.registro-ayuda {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.registro-intro {
+  margin: 0 0 16px;
+}
+
+.registro-soy-rep {
+  margin-bottom: 16px;
+  min-height: 44px;
+}
+
+.campo input[aria-invalid="true"],
+.campo select[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.registro-ver {
+  width: auto;
+  padding: 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+}
+
+.registro-resumen {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-bg);
+  font-size: 14px;
+}
+
+.registro-botones {
+  display: flex;
+  gap: 8px;
+}
+
+.registro-botones .btn-secondary {
+  flex: 0 0 36%;
+}
+
+.registro-card .password-wrapper input {
+  padding-right: 84px;
+}

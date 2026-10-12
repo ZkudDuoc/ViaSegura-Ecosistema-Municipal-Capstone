@@ -1,0 +1,153 @@
+.inicio-saludo {
+  margin: 0;
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+
+.inicio-titulo {
+  font-size: 26px;
+  overflow-wrap: anywhere;
+}
+
+/* Accesos rápidos: 2 columnas en escritorio y en celular, cards grandes. */
+.inicio-accesos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+
+.inicio-acceso {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 140px;
+  padding: 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.inicio-acceso:hover,
+.inicio-acceso:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 10px rgba(11, 95, 255, 0.12);
+}
+
+.inicio-acceso-icono {
+  color: var(--color-primary);
+  margin-bottom: 6px;
+}
+
+.inicio-acceso-titulo {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.inicio-acceso-descripcion {
+  font-size: 14px;
+  color: var(--color-text-muted);
+}
+
+.inicio-acceso-contador {
+  align-self: flex-start;
+  margin-top: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #dce8ff;
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.inicio-acceso.destacada {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.inicio-acceso.destacada .inicio-acceso-icono,
+.inicio-acceso.destacada .inicio-acceso-descripcion {
+  color: #fff;
+}
+
+/* Avisos */
+.inicio-seccion-titulo {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+.inicio-lista-avisos {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.inicio-aviso {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fff8e1;
+  border: 1px solid #f3d27a;
+  color: #6b4d00;
+}
+
+.inicio-aviso.urgente {
+  background: #fde4e2;
+  border-color: #f2aaa4;
+  color: #8f1d15;
+}
+
+.inicio-aviso-icono {
+  flex-shrink: 0;
+}
+
+.inicio-aviso-texto {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.inicio-aviso-accion {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.inicio-sin-avisos {
+  color: #13774a;
+  background: #e1f5ea;
+  border-color: #b6e2c9;
+  font-weight: 600;
+}
+
+.inicio-error .btn-secondary {
+  margin-top: 8px;
+}
+
+@media (max-width: 480px) {
+  .inicio-acceso {
+    min-height: 128px;
+    padding: 14px;
+  }
+
+  .inicio-acceso-titulo {
+    font-size: 16px;
+  }
+
+  .inicio-aviso {
+    flex-wrap: wrap;
+  }
+
+  .inicio-aviso-accion {
+    margin-left: 36px;
+  }
+}

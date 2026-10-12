@@ -918,8 +918,7 @@ async function corregir(req, res) {
   }
 
   const campos = Object.keys(cambios);
-  const sets = campos.map((campo, i) => `${campo} = ${i + 5}`);
-
+  const sets = campos.map((campo, i) => `${campo} = $${i + 5}`);
   try {
     const { rows } = await pool.query(
       `UPDATE permiso

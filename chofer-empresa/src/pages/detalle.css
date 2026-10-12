@@ -179,3 +179,52 @@
   color: var(--color-text-muted);
   margin-top: 2px;
 }
+.detalle-volver {
+  padding: 8px 0;
+}
+
+.revision {
+  border-color: #f3a35c;
+  background: #fff7ed;
+}
+
+.revision-motivo {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+
+.detalle-explicacion {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.multas-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.multa {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.multa-foto img {
+  width: 88px;
+  height: 88px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+}
+
+.multa-datos {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}

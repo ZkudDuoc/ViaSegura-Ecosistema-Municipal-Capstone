@@ -4,10 +4,12 @@ import { ChoferProvider } from "./context/ChoferContext";
 import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RegistroPage from "./pages/RegistroPage";
-import HomePage from "./pages/HomePage";
+import InicioPage from "./pages/InicioPage";
+import SolicitudesPage from "./pages/SolicitudesPage";  
 import SolicitudPage from "./pages/SolicitudPage";
 import DetallePage from "./pages/DetallePage";
 import CamionesPage from "./pages/CamionesPage";
+import TrabajadoresPage from "./pages/TrabajadoresPage";
 import ChoferCodigoPage from "./pages/chofer/ChoferCodigoPage";
 import ChoferInicioPage from "./pages/chofer/ChoferInicioPage";
 import ChoferEvidenciaPage from "./pages/chofer/ChoferEvidenciaPage";
@@ -42,9 +44,11 @@ export default function App() {
               </RequireAuth>
             }
           >
-            <Route index element={<HomePage />} />
+            <Route index element={<InicioPage />} />
+            <Route path="/solicitudes" element={<SolicitudesPage />} />
             <Route path="/solicitud" element={<SolicitudPage />} />
             <Route path="/camiones" element={<CamionesPage />} />
+            <Route path="/trabajadores" element={<TrabajadoresPage />} />
             <Route path="/solicitudes/:id" element={<DetallePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
