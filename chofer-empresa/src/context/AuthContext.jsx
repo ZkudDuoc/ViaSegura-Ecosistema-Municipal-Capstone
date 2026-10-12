@@ -135,12 +135,26 @@ export function AuthProvider({ children }) {
     },
     [abrirSesion, completarPerfil]
   );
+  
+  // Registro de una empresa nueva y su usuario administrador. Deja la sesión
+  // iniciada. Los errores se lanzan tal cual: la página los ubica en el paso
+  // y el campo que corresponde.
+  const registrarEmpresa = useCallback(
+    async (datos) => {
+      const data = await authService.registrarEmpresa(datos);
+      abrirSesion(data);
+      completarPerfil();
+      return data;
+    },
+    [abrirSesion, completarPerfil]
+  );
+
 
   const limpiarError = useCallback(() => setError(null), []);
 
   return (
     <AuthContext.Provider
-      value={{ usuario, token, verificando, loading, error, login, registrar, logout, limpiarError }}
+          value={{ usuario, token, verificando, loading, error, login, registrar, registrarEmpresa, logout, limpiarError }}
     >
       {children}
     </AuthContext.Provider>
