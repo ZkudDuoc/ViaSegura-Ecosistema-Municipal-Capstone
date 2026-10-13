@@ -21,15 +21,17 @@ const DURACION_AVISO_MS = 8000;
 
 const GRUPOS_ESTADO = {
   POR_DECIDIR: ["PENDIENTE_CONFIRMACION_MUNICIPAL", "EN_COLA_ESPERA"],
+  ESPERANDO_EMPRESA: ["EN_REVISION"],
   EN_TERRENO: ["ACTIVO", "ACTIVO_PENDIENTE_EVIDENCIA", "SUSPENDIDO"],
   APROBADAS: ["APROBADO"],
   CERRADAS: ["FINALIZADO", "EXPIRADO", "REVOCADO", "RECHAZADO"],
 };
-const ORDEN_GRUPOS = ["POR_DECIDIR", "EN_TERRENO", "APROBADAS", "CERRADAS"];
+const ORDEN_GRUPOS = ["POR_DECIDIR", "ESPERANDO_EMPRESA", "EN_TERRENO", "APROBADAS", "CERRADAS"];
 
 const PESTANAS = [
   { value: "TODAS", label: "Todas" },
   { value: "POR_DECIDIR", label: "Por decidir" },
+  { value: "ESPERANDO_EMPRESA", label: "Esperando a la empresa" },
   { value: "EN_TERRENO", label: "En terreno" },
   { value: "APROBADAS", label: "Aprobadas" },
   { value: "CERRADAS", label: "Cerradas" },
@@ -145,6 +147,10 @@ export default function OperadorPage() {
   useEventoSocket("solicitud:rechazada", recargar);
   useEventoSocket("solicitud:revocada", recargar);
   useEventoSocket("solicitud:suspendida", recargar);
+  useEventoSocket("solicitud:corregida", (permiso) => {
+  recargar();
+  setAviso({ texto: `La empresa corrigió el horario de ${permiso?.id ? codigoCorto(permiso.id) : "una solicitud"}`, urgente: false });
+  });
 
   useEffect(() => {
     if (!aviso) return undefined;

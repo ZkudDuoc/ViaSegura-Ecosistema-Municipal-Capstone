@@ -1,0 +1,125 @@
+.cambio-horario {
+  margin-bottom: 16px;
+}
+
+.cambio-horario h2 {
+  margin: 0 0 6px;
+}
+
+.cambio-horario.esperando {
+  border-color: #f3a35c;
+  background: #fff7ed;
+}
+
+.cambio-horario-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cambio-horario-motivo {
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+.cambio-horario-nota {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.cambio-horario form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cambio-horario textarea {
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.cambio-horario-contador {
+  align-self: flex-end;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.cambio-horario-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cambio-horario-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.cambio-horario-fechas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cambio-horario-fechas label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cambio-horario-fechas input {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.btn-cambio-horario {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #c2410c;
+  background: #ea580c;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cambio-cancelar {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-cambio-horario:disabled,
+.btn-cambio-cancelar:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+@media (max-width: 600px) {
+  .cambio-horario-fechas {
+    grid-template-columns: 1fr;
+  }
+}

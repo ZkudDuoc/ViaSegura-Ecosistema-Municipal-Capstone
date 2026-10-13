@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import AreaMapa from "../components/AreaMapa";
 import RiesgoDetalle from "../components/RiesgoDetalle";
+import CambioHorario from "../components/CambioHorario";
 import {
   obtenerPermiso,
   aprobarPermiso,
@@ -36,7 +37,7 @@ const RESULTADO_CASCADA_LABEL = { ENTREGADO: "Entregado", FALLIDO: "Falló", ENC
 
 // Estos cambios de estado ya tienen su propio evento en la bitácora (con
 // actor y motivo): se ocultan los duplicados automáticos del trigger.
-const ESTADOS_CON_EVENTO_PROPIO = ["APROBADO", "RECHAZADO", "REVOCADO", "ACTIVO", "FINALIZADO", "SUSPENDIDO"];
+const ESTADOS_CON_EVENTO_PROPIO = ["APROBADO", "RECHAZADO", "REVOCADO", "ACTIVO", "FINALIZADO", "SUSPENDIDO", "EN_REVISION"];
 
 function formatearDuracion(desde, hasta) {
   if (!desde || !hasta) return "—";
@@ -68,6 +69,16 @@ function describirEvento(evento) {
         quien: "Sistema",
         tono: d.estado_nuevo === "EXPIRADO" ? "neutro" : "alerta",
       };
+          case "SOLICITUD_REVISION":
+      return {
+        titulo: "Se pidió a la empresa cambiar el horario",
+        detalle: d.motivo ? `Motivo: ${d.motivo}` : null,
+        quien: "Municipalidad",
+        tono: "alerta",
+      };
+    case "CORRECCION_PERMISO":
+      return { titulo: "La empresa corrigió la solicitud", quien: "Empresa", tono: "neutro" };
+      
     case "APROBACION_PERMISO":
       return { titulo: "Aprobada", detalle: d.comentario ?? null, quien: "Municipalidad", tono: "ok" };
     case "RECHAZO_PERMISO":
@@ -307,6 +318,8 @@ export default function SolicitudDetallePage() {
           {errorAccion && <p className="pending-banner error-banner">{errorAccion}</p>}
         </section>
       )}
+
+      <CambioHorario permiso={permiso} onActualizado={cargar} />
 
       <div className="detalle-grid">
         <section className="detalle-card">
