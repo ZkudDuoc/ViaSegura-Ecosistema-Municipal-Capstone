@@ -9,6 +9,7 @@ export const ESTADO_LABEL = {
   REVOCADO: "Revocada",
   RECHAZADO: "Rechazada",
   SUSPENDIDO: "Suspendida",
+    EN_REVISION: "Esperando a la empresa",
 };
 
 export const ESTADO_CLASS = {
@@ -22,6 +23,7 @@ export const ESTADO_CLASS = {
   REVOCADO: "estado-revocado",
   RECHAZADO: "estado-revocado",
   SUSPENDIDO: "estado-revocado",
+    EN_REVISION: "estado-cola",
 };
 
 export const RIESGO_CLASS = { Bajo: "riesgo-bajo", Medio: "riesgo-medio", Alto: "riesgo-alto" };
