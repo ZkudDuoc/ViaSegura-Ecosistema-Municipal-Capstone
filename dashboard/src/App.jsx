@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { SocketProvider } from "./context/SocketContext";
 import DashboardLayout from "./layouts/DashboardLayout";
 import LoginPage from "./pages/LoginPage";
+import InicioPage from "./pages/InicioPage";
 import OperadorPage from "./pages/OperadorPage";
 import SolicitudDetallePage from "./pages/SolicitudDetallePage";
 import MultasPage from "./pages/MultasPage";
@@ -33,7 +34,7 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/operador" replace />} />
+          <Route index element={<InicioPage />} />
           <Route path="/operador" element={<OperadorPage />} />
           <Route path="/solicitudes/:id" element={<SolicitudDetallePage />} />
           <Route path="/multas" element={<MultasPage />} />

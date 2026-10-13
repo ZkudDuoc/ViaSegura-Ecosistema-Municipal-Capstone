@@ -104,7 +104,13 @@ export default function OperadorPage() {
   }, [cargar]);
 
   // Una alerta de pánico pide centrar el mapa en su ubicación (ver PanicoAlertas).
+  // Desde el Inicio, "Mapa y calles de riesgo" llega con verCalles: se encienden
+  // las calles y se baja hasta el mapa.
   useEffect(() => {
+    if (location.state?.verCalles) {
+      capaCalles.control.setActiva(true);
+      document.getElementById("mapa-bandeja")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
     const destino = location.state?.foco;
     if (!destino) return;
     setFoco(destino);
