@@ -10,6 +10,7 @@ import SolicitudPage from "./pages/SolicitudPage";
 import DetallePage from "./pages/DetallePage";
 import CamionesPage from "./pages/CamionesPage";
 import TrabajadoresPage from "./pages/TrabajadoresPage";
+import PerfilPage from "./pages/PerfilPage";
 import ChoferCodigoPage from "./pages/chofer/ChoferCodigoPage";
 import ChoferInicioPage from "./pages/chofer/ChoferInicioPage";
 import ChoferEvidenciaPage from "./pages/chofer/ChoferEvidenciaPage";
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="/solicitud" element={<SolicitudPage />} />
             <Route path="/camiones" element={<CamionesPage />} />
             <Route path="/trabajadores" element={<TrabajadoresPage />} />
+<Route path="/perfil" element={<PerfilPage />} />
             <Route path="/solicitudes/:id" element={<DetallePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -8,6 +8,7 @@ import OperadorPage from "./pages/OperadorPage";
 import SolicitudDetallePage from "./pages/SolicitudDetallePage";
 import MultasPage from "./pages/MultasPage";
 import ReporteriaPage from "./pages/ReporteriaPage";
+import PerfilPage from "./pages/PerfilPage";
 
 // Ruta protegida: mientras se valida el token guardado no se muestra nada;
 // sin sesión se manda a /login recordando a dónde quería ir.
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="/solicitudes/:id" element={<SolicitudDetallePage />} />
           <Route path="/multas" element={<MultasPage />} />
           <Route path="/reporteria" element={<ReporteriaPage />} />
+          <Route path="/perfil" element={<PerfilPage />} />
           <Route path="/supervisor" element={<Navigate to="/reporteria" replace />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -3,7 +3,8 @@ import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ResumenProvider, useResumen } from "../context/ResumenContext";
 import { ESTADOS_POR_DECIDIR } from "../utils/resumen";
-import api from "../services/api";
+import useNombreComuna from "../hooks/useNombreComuna";
+import { iniciales } from "../utils/rut";
 import PanicoAlertas from "../components/PanicoAlertas";
 import Icono from "../components/Icono";
 import "./DashboardLayout.css";
@@ -26,28 +27,6 @@ const SECCIONES = [
     ],
   },
 ];
-
-function iniciales(nombre) {
-  return (nombre ?? "")
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0].toUpperCase())
-    .join("");
-}
-
-// Nombre de la comuna del operador, para que siempre sepa qué está mirando.
-function useNombreComuna(comunaId) {
-  const [nombre, setNombre] = useState(null);
-  useEffect(() => {
-    if (!comunaId) return;
-    api
-      .get("/comunas")
-      .then((res) => setNombre(res.data.find((c) => c.id === comunaId)?.nombre ?? null))
-      .catch(() => {});
-  }, [comunaId]);
-  return nombre;
-}
 
 function useContadores() {
   const { permisos, alertas } = useResumen();
@@ -105,13 +84,20 @@ function MenuLateral({ abierto, onCerrar }) {
       </nav>
 
       <div className="sidebar-usuario">
-        <div className="sidebar-avatar" aria-hidden="true">
-          {iniciales(usuario?.nombre)}
-        </div>
-        <div className="sidebar-usuario-datos">
-          <div className="sidebar-usuario-nombre">{usuario?.nombre}</div>
-          <div className="sidebar-usuario-rol">Operador central</div>
-        </div>
+        {/* Tocar la tarjeta abre "Mi perfil". */}
+        <NavLink
+          to="/perfil"
+          className={({ isActive }) => "sidebar-perfil" + (isActive ? " active" : "")}
+          title="Ver mi perfil"
+        >
+          <div className="sidebar-avatar" aria-hidden="true">
+            {iniciales(usuario?.nombre)}
+          </div>
+          <div className="sidebar-usuario-datos">
+            <div className="sidebar-usuario-nombre">{usuario?.nombre}</div>
+            <div className="sidebar-usuario-rol">Ver mi perfil</div>
+          </div>
+        </NavLink>
         <button type="button" className="btn-logout" onClick={logout} aria-label="Cerrar sesión" title="Cerrar sesión">
           <Icono nombre="salir" />
         </button>
