@@ -77,9 +77,52 @@
   font-size: 14px;
 }
 
+.app-perfil {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 6px;
+  margin: 0 -6px;
+  border-radius: 10px;
+  color: var(--color-text);
+}
+
+.app-perfil:hover {
+  background: var(--color-bg);
+}
+
+.app-perfil.active {
+  background: #eaf1ff;
+}
+
+.app-avatar {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #dce8ff;
+  color: var(--color-primary-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.app-usuario-datos {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .app-usuario-nombre {
   font-weight: 600;
   overflow-wrap: anywhere;
+}
+
+.app-usuario-ver {
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 .app-logout {
@@ -140,12 +183,20 @@
 
   .app-usuario {
     margin-left: auto;
+    flex-direction: row;
+    align-items: center;
     padding: 0;
     border-top: none;
   }
 
-  .app-usuario-nombre {
+  .app-usuario-datos {
     display: none;
+  }
+
+  .app-perfil {
+    min-height: 44px;
+    margin: 0;
+    padding: 4px;
   }
 
   .app-nav {

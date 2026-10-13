@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Icono from "../components/Icono";
-import { nombreEmpresa } from "../utils/empresa";
+import { nombreEmpresa, iniciales } from "../utils/empresa";
 import "./AppLayout.css";
 
 // Mismo menú en todas las páginas: barra lateral en escritorio y barra fija
@@ -40,7 +40,21 @@ export default function AppLayout() {
         </nav>
 
         <div className="app-usuario">
-          <span className="app-usuario-nombre">{usuario?.nombre}</span>
+          {/* Tocar el nombre o las iniciales abre "Mi perfil". */}
+          <NavLink
+            to="/perfil"
+            className={({ isActive }) => "app-perfil" + (isActive ? " active" : "")}
+            title="Ver mi perfil"
+            aria-label="Ver mi perfil"
+          >
+            <span className="app-avatar" aria-hidden="true">
+              {iniciales(usuario?.nombre)}
+            </span>
+            <span className="app-usuario-datos">
+              <span className="app-usuario-nombre">{usuario?.nombre}</span>
+              <span className="app-usuario-ver">Ver mi perfil</span>
+            </span>
+          </NavLink>
           <button type="button" className="app-logout" onClick={logout}>
             <Icono nombre="salir" tamano={18} />
             Salir
