@@ -122,13 +122,13 @@
   display: inline-block;
 }
 
-.estado-pendiente { background: #fff3d6; color: #8a5a00; }
-.estado-aprobado { background: #e3f6ea; color: #157347; }
-.estado-cola { background: #ffe8d6; color: #b3540b; }
-.estado-activo { background: #e0ecff; color: #0842b0; }
-.estado-finalizado { background: var(--color-bg); color: var(--color-text-muted); }
-.estado-expirado { background: var(--color-bg); color: var(--color-text-muted); }
-.estado-revocado { background: #fdeceb; color: #b3261e; }
+.estado-pendiente { background: #fff4cc; color: #7a5a00; }
+.estado-aprobado { background: #dcfce7; color: #166534; }
+.estado-cola { background: #ffedd5; color: #9a3412; }
+.estado-activo { background: #dbeafe; color: #1e40af; }
+.estado-finalizado { background: #eef2f6; color: #475569; }
+.estado-expirado { background: #eef2f6; color: #475569; }
+.estado-revocado { background: #fee4e2; color: #b42318; }
 
 .motivo-cola-hint {
   font-size: 11px;
