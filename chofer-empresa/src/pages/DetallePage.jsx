@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import AreaMapa from "../components/AreaMapa";
+import { ListaCargando } from "../components/EstadoLista";
 import { obtenerPermiso, obtenerDocumento, generarCodigoChofer, corregirPermiso } from "../services/permisoService";
 import { listarMultasDeSolicitud } from "../services/empresaPanelService";
 import { getApiErrorMessage } from "../services/api";
@@ -135,7 +136,7 @@ function CodigoChofer({ permisoId }) {
     : "";
 
   return (
-    <section className="card paso">
+      <section className="card paso codigo-card">
       <h2 className="paso-titulo">Código para el chofer</h2>
       <p className="permiso-detalle">
         El chofer lo ingresa en "¿Eres chofer?" para ver este servicio, enviar evidencia y usar el botón de pánico,
@@ -349,7 +350,7 @@ export default function DetallePage() {
     }
   };
 
-  if (cargando) return <p className="subtitulo">Cargando solicitud…</p>;
+  if (cargando) return <ListaCargando filas={3} etiqueta="Cargando solicitud" />;
 
   if (!permiso) {
     return (
@@ -368,7 +369,7 @@ export default function DetallePage() {
   const vehiculos = [permiso.vehiculo, ...(permiso.vehiculos_adicionales ?? [])].filter(Boolean);
 
   return (
-    <div>
+    <div className="detalle-pagina">
       {enlaceVolver}
 
       <div className="encabezado-fila detalle-encabezado">
