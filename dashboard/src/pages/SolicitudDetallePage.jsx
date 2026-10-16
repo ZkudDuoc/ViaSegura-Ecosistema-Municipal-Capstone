@@ -260,7 +260,7 @@ export default function SolicitudDetallePage() {
         <span className={`estado-pill ${ESTADO_CLASS[permiso.estado] ?? ""}`}>
           {ESTADO_LABEL[permiso.estado] ?? permiso.estado}
         </span>
-        <span className={`riesgo-pill ${RIESGO_CLASS[permiso.riesgo?.nivel] ?? "riesgo-medio"}`}>
+        <span className={`riesgo-pill ${RIESGO_CLASS[permiso.riesgo?.nivel] ?? ""}`}>
           {permiso.riesgo ? `Riesgo ${permiso.riesgo.nivel.toLowerCase()}` : "Sin evaluar"}
         </span>
         {permiso.tipo_actividad === "EMERGENCIA" && <span className="estado-pill estado-revocado">Emergencia</span>}
