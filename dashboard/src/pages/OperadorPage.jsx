@@ -5,6 +5,7 @@ import { listarPendientes, aprobarPermiso, listarOperativos } from "../services/
 import { getApiErrorMessage } from "../services/api";
 import { useEventoSocket } from "../context/SocketContext";
 import CallesRiesgoControl, { useCapaCalles } from "../components/CallesRiesgoControl";
+import { ListaCargando, ListaVacia } from "../components/EstadoLista";
 import {
   ESTADO_LABEL,
   ESTADO_CLASS,
@@ -90,7 +91,7 @@ export default function OperadorPage() {
   const [operativos, setOperativos] = useState([]);
   const [aviso, setAviso] = useState(null);
   const [foco, setFoco] = useState(null);
-    const capaCalles = useCapaCalles();
+  const capaCalles = useCapaCalles();
 
   const [pestana, setPestana] = useState("TODAS");
   const [riesgo, setRiesgo] = useState("TODOS");
@@ -148,8 +149,11 @@ export default function OperadorPage() {
   useEventoSocket("solicitud:revocada", recargar);
   useEventoSocket("solicitud:suspendida", recargar);
   useEventoSocket("solicitud:corregida", (permiso) => {
-  recargar();
-  setAviso({ texto: `La empresa corrigió el horario de ${permiso?.id ? codigoCorto(permiso.id) : "una solicitud"}`, urgente: false });
+    recargar();
+    setAviso({
+      texto: `La empresa corrigió el horario de ${permiso?.id ? codigoCorto(permiso.id) : "una solicitud"}`,
+      urgente: false,
+    });
   });
 
   useEffect(() => {
@@ -215,7 +219,7 @@ export default function OperadorPage() {
         </div>
       )}
 
-            <CallesRiesgoControl {...capaCalles.control} />
+      <CallesRiesgoControl {...capaCalles.control} />
       <div id="mapa-bandeja">
         <MapView
           height={360}
@@ -274,7 +278,11 @@ export default function OperadorPage() {
         )}
       </div>
 
-      {loading && <p className="page-subtitle">Cargando solicitudes…</p>}
+      {loading && (
+        <div className="bandeja-vacia">
+          <ListaCargando tipo="tabla" filas={5} etiqueta="Cargando solicitudes" />
+        </div>
+      )}
       {error && <p className="pending-banner error-banner">{error}</p>}
 
       {!loading && (
@@ -282,71 +290,87 @@ export default function OperadorPage() {
           <p className="bandeja-resumen">
             Mostrando {visibles.length} de {solicitudes.length} solicitudes · ordenadas por prioridad
           </p>
-          <table className="solicitudes-table">
-            <thead>
-              <tr>
-                <th>Solicitud</th>
-                <th>Empresa / RUT</th>
-                <th>Riesgo</th>
-                <th>Estado</th>
-                <th>Recibida</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {visibles.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="page-subtitle">
-                    {solicitudes.length === 0 ? "No hay solicitudes" : "Ninguna solicitud coincide con los filtros"}
-                  </td>
-                </tr>
+          {visibles.length === 0 ? (
+            <div className="bandeja-vacia">
+              {solicitudes.length === 0 ? (
+                <ListaVacia icono="bandeja" titulo="No hay solicitudes de tu comuna">
+                  Cuando una empresa pida un permiso, aparecerá aquí al instante.
+                </ListaVacia>
+              ) : (
+                <ListaVacia icono="bandeja" titulo="Ninguna solicitud coincide">
+                  {hayFiltros ? (
+                    <button type="button" className="btn-secondary" onClick={limpiarFiltros}>
+                      Limpiar filtros
+                    </button>
+                  ) : (
+                    "No hay solicitudes en esta pestaña."
+                  )}
+                </ListaVacia>
               )}
-              {visibles.map((s) => (
-                <tr key={s.id} className={s.tipo_actividad === "EMERGENCIA" ? "fila-emergencia" : undefined}>
-                  <td>
-                    <Link to={`/solicitudes/${s.id}`} className="link-detalle">
-                      {codigoCorto(s.id)}
-                    </Link>
-                    {s.tipo_actividad === "EMERGENCIA" && <span className="badge-emergencia">Emergencia</span>}
-                  </td>
-                  <td>
-                    <div>{s.nombre_empresa_ejecutora ?? "Persona natural"}</div>
-                    <div className="celda-sub">{s.rut_ejecutor}</div>
-                  </td>
-                  <td>
-                    <span className={`riesgo-pill ${RIESGO_CLASS[s.riesgo] ?? "riesgo-medio"}`}>
-                      {s.riesgo ?? "Sin evaluar"}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`estado-pill ${ESTADO_CLASS[s.estado] ?? ""}`}>
-                      {ESTADO_LABEL[s.estado] ?? s.estado}
-                    </span>
-                    {s.estado === "EN_COLA_ESPERA" && s.motivo_cola && (
-                      <div className="motivo-cola-hint">{MOTIVO_COLA_LABEL[s.motivo_cola] ?? s.motivo_cola}</div>
-                    )}
-                  </td>
-                  <td className="celda-sub">{formatearRecibida(s.created_at)}</td>
-                  <td>
-                    <div className="acciones-cell">
-                      {ESTADOS_APROBABLES.includes(s.estado) && (
-                        <button
-                          className="btn-secondary"
-                          onClick={() => handleAprobar(s.id)}
-                          disabled={procesandoId === s.id}
-                        >
-                          {procesandoId === s.id ? "Aprobando…" : "Aprobar"}
-                        </button>
-                      )}
-                      <Link to={`/solicitudes/${s.id}`} className="btn-secondary">
-                        Ver detalle
-                      </Link>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            </div>
+          ) : (
+            <div className="tabla-contenedor">
+              <table className="solicitudes-table">
+                <thead>
+                  <tr>
+                    <th>Solicitud</th>
+                    <th>Empresa / RUT</th>
+                    <th>Riesgo</th>
+                    <th>Estado</th>
+                    <th>Recibida</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibles.map((s) => (
+                    <tr key={s.id} className={s.tipo_actividad === "EMERGENCIA" ? "fila-emergencia" : undefined}>
+                      <td>
+                        <Link to={`/solicitudes/${s.id}`} className="link-detalle">
+                          {codigoCorto(s.id)}
+                        </Link>
+                        {s.tipo_actividad === "EMERGENCIA" && <span className="badge-emergencia">Emergencia</span>}
+                      </td>
+                      <td>
+                        <div className="celda-empresa">{s.nombre_empresa_ejecutora ?? "Persona natural"}</div>
+                        <div className="celda-sub">{s.rut_ejecutor}</div>
+                      </td>
+                      <td>
+                        <span className={`riesgo-pill ${RIESGO_CLASS[s.riesgo] ?? ""}`}>
+                          {s.riesgo ?? "Sin evaluar"}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`estado-pill ${ESTADO_CLASS[s.estado] ?? ""}`}>
+                          {ESTADO_LABEL[s.estado] ?? s.estado}
+                        </span>
+                        {s.estado === "EN_COLA_ESPERA" && s.motivo_cola && (
+                          <div className="motivo-cola-hint">{MOTIVO_COLA_LABEL[s.motivo_cola] ?? s.motivo_cola}</div>
+                        )}
+                      </td>
+                      <td className="celda-sub celda-fecha">{formatearRecibida(s.created_at)}</td>
+                      <td>
+                        <div className="acciones-cell">
+                          {ESTADOS_APROBABLES.includes(s.estado) && (
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              onClick={() => handleAprobar(s.id)}
+                              disabled={procesandoId === s.id}
+                            >
+                              {procesandoId === s.id ? "Aprobando…" : "Aprobar"}
+                            </button>
+                          )}
+                          <Link to={`/solicitudes/${s.id}`} className="btn-secondary">
+                            Ver detalle
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </div>

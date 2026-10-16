@@ -4,6 +4,7 @@
   flex-direction: column;
 }
 
+/* Barra superior azul marino con el logo, el menú y el usuario. */
 .app-header {
   position: sticky;
   top: 0;
@@ -11,15 +12,9 @@
   display: flex;
   align-items: center;
   gap: 24px;
-  padding: 12px 24px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.app-brand {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-primary-dark);
+  padding: 10px 24px;
+  background: var(--color-navy);
+  color: #fff;
 }
 
 .app-nav {
@@ -32,20 +27,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  min-height: 40px;
+  padding: 8px 14px;
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: var(--color-text-muted);
+  color: #c9d6ec;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .app-nav-link:hover {
-  background: var(--color-bg);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .app-nav-link.active {
   background: var(--color-primary);
   color: #fff;
+  font-weight: 600;
 }
 
 .app-usuario {
@@ -55,13 +54,27 @@
   font-size: 14px;
 }
 
+.app-usuario-nombre {
+  color: #e6edf8;
+  font-weight: 500;
+}
+
 .app-logout {
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  min-height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
   border-radius: 8px;
   padding: 6px 12px;
   font-size: 13px;
+  font-weight: 600;
+  color: #e6edf8;
   cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.app-logout:hover {
+  border-color: var(--color-danger);
+  background: rgba(217, 45, 32, 0.25);
 }
 
 .app-content {
@@ -72,11 +85,19 @@
   padding: 24px 16px;
 }
 
-/* Celular: el menú pasa a una barra fija abajo, estilo app. */
+/* Celular: el menú pasa a una barra blanca fija abajo, estilo app. */
 @media (max-width: 640px) {
   .app-header {
-    padding: 12px 16px;
+    padding: 10px 16px;
     gap: 12px;
+  }
+
+  .app-header .logo-texto {
+    font-size: 18px;
+  }
+
+  .app-usuario {
+    margin-left: auto;
   }
 
   .app-usuario-nombre {
@@ -90,20 +111,27 @@
     right: 0;
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.06);
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     justify-content: space-around;
   }
 
   .app-nav-link {
-    flex-direction: column;
-    gap: 2px;
-    font-size: 11px;
-    padding: 6px 8px;
     flex: 1;
+    justify-content: center;
+    min-height: 52px;
+    font-size: 14px;
+    color: var(--color-text-muted);
   }
 
-  .app-nav-icono {
-    font-size: 20px;
+  .app-nav-link:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .app-nav-link.active {
+    background: var(--color-primary-suave);
+    color: var(--color-primary);
   }
 
   .app-content {

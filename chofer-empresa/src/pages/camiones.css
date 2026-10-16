@@ -1,0 +1,68 @@
+/* Tarjetas de camión: en escritorio van de a dos por fila. */
+.camiones-titulo-lista {
+  margin-top: 8px;
+}
+
+.lista-camiones {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+.camion-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.camion-icono {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--color-primary-suave);
+  color: var(--color-primary);
+}
+
+.camion-cabecera .camion-acciones {
+  margin-left: auto;
+}
+
+/* Las 4 medidas en cajitas grises: dato chico arriba, valor grande abajo. */
+.camion-medidas {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+}
+
+.camion-medidas div {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--color-bg);
+}
+
+.camion-medidas dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.camion-medidas dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-navy);
+  white-space: nowrap;
+}
+
+@media (max-width: 400px) {
+  .camion-medidas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

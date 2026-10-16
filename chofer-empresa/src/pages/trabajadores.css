@@ -10,26 +10,57 @@
 }
 
 .trabajador.inactivo {
-  background: var(--color-bg);
+  background: #f8fafc;
 }
 
 .trabajador-cabecera {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Círculo con las iniciales: ayuda a ubicar a la persona de un vistazo. */
+.trabajador-avatar {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--color-primary-suave);
+  color: var(--color-primary-hover);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.trabajador.inactivo .trabajador-avatar {
+  background: #eef2f6;
+  color: #94a3b8;
+}
+
+.trabajador-datos {
+  flex: 1;
+  min-width: 0;
 }
 
 .trabajador-nombre {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
+  color: var(--color-navy);
+  overflow-wrap: anywhere;
+}
+
+.trabajador.inactivo .trabajador-nombre {
+  color: var(--color-text-muted);
 }
 
 .trabajador-vigencias {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
 }
 
 .trabajador-acciones {

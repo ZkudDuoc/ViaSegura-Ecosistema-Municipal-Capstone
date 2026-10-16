@@ -6,6 +6,8 @@ import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../utils/formato";
 import useDebounce from "../hooks/useDebounce";
 import BarraBusqueda from "../components/BarraBusqueda";
 import GraficosEmpresa from "../components/GraficosEmpresa";
+import Icono from "../components/Icono";
+import { ListaCargando, ListaVacia } from "../components/EstadoLista";
 import "./paginas.css";
 import "./solicitudes.css";
 
@@ -127,7 +129,8 @@ export default function SolicitudesPage() {
     <div className="solicitudes-pagina">
       <div className="encabezado-fila">
         <h1>Solicitudes</h1>
-        <Link to="/solicitud" className="btn-primary solicitudes-nueva">
+          <Link to="/solicitud" className="btn-primary solicitudes-nueva">
+          <Icono nombre="crear" tamano={18} />
           Crear solicitud
         </Link>
       </div>
@@ -135,7 +138,7 @@ export default function SolicitudesPage() {
 
       <GraficosEmpresa />
 
-      <section className="card paso" aria-labelledby="titulo-filtros">
+        <section className="card paso solicitudes-filtros" aria-labelledby="titulo-filtros">
         <h2 id="titulo-filtros" className="paso-titulo">
           Buscar y filtrar
         </h2>
@@ -160,6 +163,11 @@ export default function SolicitudesPage() {
         </div>
         {rangoInvalido && <p className="texto-error">La fecha "desde" debe ser anterior a la fecha "hasta".</p>}
 
+
+        <span className="filtro-etiqueta" aria-hidden="true">
+          Estado
+        </span>
+
         <div className="filtro-grupo" role="group" aria-label="Estado">
           {GRUPOS.map((g) => (
             <button
@@ -173,6 +181,9 @@ export default function SolicitudesPage() {
             </button>
           ))}
         </div>
+          <span className="filtro-etiqueta" aria-hidden="true">
+          Multas
+        </span>
         <div className="filtro-grupo" role="group" aria-label="Multas">
           {MULTAS.map((m) => (
             <button
@@ -194,7 +205,7 @@ export default function SolicitudesPage() {
         )}
       </section>
 
-      {cargando && <p className="subtitulo">Cargando solicitudes…</p>}
+        {cargando && <ListaCargando tipo="tabla" filas={5} etiqueta="Cargando solicitudes" />}
 
       {error && (
         <div className="card">
@@ -206,23 +217,21 @@ export default function SolicitudesPage() {
       )}
 
       {!cargando && !error && solicitudes.length === 0 && (
-        <div className="card vacio">
-          {hayFiltros ? (
-            <>
-              No hay solicitudes con estos filtros.{" "}
-              <button type="button" className="btn-link" onClick={limpiarFiltros}>
-                Quitar filtros
-              </button>
-            </>
-          ) : (
-            <>
-              Todavía no tienes solicitudes.{" "}
-              <Link to="/solicitud" className="enlace">
-                Crear la primera
-              </Link>
-            </>
-          )}
-        </div>
+                hayFiltros ? (
+          <ListaVacia icono="solicitudes" titulo="No hay solicitudes con estos filtros">
+            <button type="button" className="btn-secondary" onClick={limpiarFiltros}>
+              Quitar filtros
+            </button>
+          </ListaVacia>
+        ) : (
+          <ListaVacia icono="solicitudes" titulo="Todavía no tienes solicitudes">
+            Cuando pidas un permiso para trabajar en la vía pública, aparecerá aquí con su estado.
+            <br />
+            <Link to="/solicitud" className="btn-primary">
+              Crear la primera solicitud
+            </Link>
+          </ListaVacia>
+        )
       )}
 
       {!cargando && solicitudes.length > 0 && (

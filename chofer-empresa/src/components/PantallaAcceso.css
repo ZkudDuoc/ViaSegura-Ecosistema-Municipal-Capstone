@@ -1,0 +1,293 @@
+/* Pantalla de acceso dividida */
+.acceso {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(320px, 44%) 1fr;
+  background: var(--color-surface, #fff);
+}
+
+.acceso-marca {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 40px 48px;
+  background: var(--color-navy, #0b2a5b);
+  color: #fff;
+  overflow: hidden;
+}
+
+/* Detalle sutil: un círculo de luz en la esquina. */
+.acceso-marca::after {
+  content: "";
+  position: absolute;
+  right: -120px;
+  bottom: -120px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(31, 111, 209, 0.45), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* El contenido va por encima del círculo de luz. */
+.acceso-marca > * {
+  position: relative;
+  z-index: 1;
+}
+
+.acceso-mensaje {
+  position: relative;
+  max-width: 440px;
+}
+
+.acceso-titulo {
+  margin: 0 0 12px;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.acceso-descripcion {
+  margin: 0 0 24px;
+  font-size: 16px;
+  color: #c9d6ec;
+}
+
+.acceso-puntos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.acceso-puntos li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #e6edf8;
+}
+
+.acceso-pie {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--color-navy-claro, #9fb6da);
+}
+
+.acceso-barra {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-acento, #f5b700);
+}
+
+.acceso-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: var(--color-bg, #f4f6fa);
+}
+
+.acceso-contenido {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Formulario dentro de la pantalla de acceso */
+.acceso-form h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-navy, #0b2a5b);
+}
+
+.acceso-form .acceso-ayuda {
+  margin: 0 0 24px;
+  font-size: 14px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.acceso-campo {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.acceso-campo label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.acceso-campo input {
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 14px;
+  border: 1px solid var(--color-border-fuerte, #cbd5e1);
+  border-radius: var(--radio, 10px);
+  background: var(--color-surface, #fff);
+  color: var(--color-text, #1e293b);
+  font-size: 16px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.acceso-campo input:focus {
+  outline: none;
+  border-color: var(--color-primary, #1f6fd1);
+  box-shadow: var(--anillo-foco, 0 0 0 3px rgba(31, 111, 209, 0.25));
+}
+
+.acceso-clave {
+  position: relative;
+}
+
+.acceso-clave input {
+  padding-right: 48px;
+}
+
+.acceso-ver-clave {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--color-text-muted, #64748b);
+  cursor: pointer;
+}
+
+.acceso-ver-clave:hover {
+  color: var(--color-text, #1e293b);
+}
+
+.acceso-error {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fee4e2;
+  color: #b42318;
+  font-size: 14px;
+}
+
+.acceso-boton {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  border: none;
+  border-radius: var(--radio, 10px);
+  background: var(--color-primary, #1f6fd1);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(31, 111, 209, 0.3);
+  transition: background-color 0.15s;
+}
+
+.acceso-boton:hover:not(:disabled) {
+  background: var(--color-primary-hover, #185bb0);
+}
+
+.acceso-boton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.acceso-secundario {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border-fuerte, #cbd5e1);
+  border-radius: var(--radio, 10px);
+  background: var(--color-surface, #fff);
+  color: var(--color-navy, #0b2a5b);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.acceso-secundario:hover {
+  background: #f1f5f9;
+}
+
+.acceso-separador {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.acceso-separador::before,
+.acceso-separador::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-border, #e2e8f0);
+}
+
+.acceso-alternativa {
+  margin: 20px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: var(--color-text-muted, #64748b);
+}
+
+.acceso-alternativa a {
+  color: var(--color-primary, #1f6fd1);
+  font-weight: 600;
+}
+
+/* Celular y tablet: la marca pasa a una franja arriba, solo con logo y título. */
+@media (max-width: 860px) {
+  .acceso {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .acceso-marca {
+    gap: 14px;
+    padding: 24px 20px 28px;
+  }
+
+  .acceso-marca::after {
+    display: none;
+  }
+
+  .acceso-titulo {
+    font-size: 20px;
+    margin: 0;
+  }
+
+  .acceso-descripcion,
+  .acceso-puntos,
+  .acceso-pie {
+    display: none;
+  }
+
+  .acceso-panel {
+    align-items: flex-start;
+    padding: 28px 20px 40px;
+  }
+}

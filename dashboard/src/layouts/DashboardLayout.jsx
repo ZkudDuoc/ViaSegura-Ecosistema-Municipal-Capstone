@@ -7,6 +7,7 @@ import useNombreComuna from "../hooks/useNombreComuna";
 import { iniciales } from "../utils/rut";
 import PanicoAlertas from "../components/PanicoAlertas";
 import Icono from "../components/Icono";
+import Logo from "../components/Logo";
 import "./DashboardLayout.css";
 
 // Menú agrupado: lo del día a día arriba, el control y los reportes abajo.
@@ -45,7 +46,7 @@ function MenuLateral({ abierto, onCerrar }) {
     <aside className={"sidebar" + (abierto ? " abierto" : "")} aria-label="Menú principal">
       <div className="sidebar-cabecera">
         <div>
-          <div className="brand">VíaSegura</div>
+          <Logo claro tamano={32} />
           <div className="sidebar-comuna">Municipalidad{comuna ? ` · ${comuna}` : ""}</div>
         </div>
         <button type="button" className="sidebar-cerrar" onClick={onCerrar} aria-label="Cerrar menú">
@@ -122,7 +123,7 @@ export default function DashboardLayout() {
           <button type="button" className="barra-movil-menu" onClick={() => setMenuAbierto(true)} aria-label="Abrir menú">
             <Icono nombre="menu" />
           </button>
-          <span className="brand">VíaSegura</span>
+          <Logo claro tamano={28} />
         </header>
 
         <MenuLateral abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} />

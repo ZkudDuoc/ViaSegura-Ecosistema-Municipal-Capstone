@@ -25,12 +25,28 @@ function useAhora() {
   return ahora;
 }
 
-function Metrica({ to, titulo, valor, detalle, tono }) {
+// `color` = la franja de arriba (azul, celeste, rojo o amarillo), para
+// distinguir cada número de un vistazo.
+function Metrica({ to, titulo, valor, detalle, tono, color, icono, cargando }) {
   return (
-    <Link to={to} className={"inicio-metrica" + (tono ? ` ${tono}` : "")}>
-      <span className="inicio-metrica-titulo">{titulo}</span>
-      <span className="inicio-metrica-valor">{valor ?? "—"}</span>
-      <span className="inicio-metrica-detalle">{valor === null ? "No se pudo cargar" : detalle}</span>
+    <Link to={to} className={`inicio-metrica metrica-${color}` + (tono ? ` ${tono}` : "")}>
+      <span className="inicio-metrica-cabecera">
+        <span className="inicio-metrica-titulo">{titulo}</span>
+        <span className="inicio-metrica-icono">
+          <Icono nombre={icono} tamano={18} />
+        </span>
+      </span>
+      {cargando ? (
+        <>
+          <span className="esqueleto inicio-metrica-esqueleto-valor" aria-hidden="true" />
+          <span className="esqueleto inicio-metrica-esqueleto-detalle" aria-hidden="true" />
+        </>
+      ) : (
+        <>
+          <span className="inicio-metrica-valor">{valor ?? "—"}</span>
+          <span className="inicio-metrica-detalle">{valor === null ? "No se pudo cargar" : detalle}</span>
+        </>
+      )}
     </Link>
   );
 }
@@ -72,6 +88,9 @@ export default function InicioPage() {
         <Metrica
           to="/operador"
           titulo="Por decidir"
+          color="azul"
+          icono="bandeja"
+          cargando={resumen.cargando}
           valor={metricas.porDecidir}
           detalle={metricas.emergencias ? `${metricas.emergencias} de emergencia` : "Sin emergencias"}
           tono={metricas.emergencias ? "alerta" : null}
@@ -79,6 +98,9 @@ export default function InicioPage() {
         <Metrica
           to="/operador"
           titulo="En terreno ahora"
+          color="celeste"
+          icono="camion"
+          cargando={resumen.cargando}
           valor={metricas.enTerreno}
           detalle={
             metricas.excedidos
@@ -92,6 +114,9 @@ export default function InicioPage() {
         <Metrica
           to="/operador"
           titulo="Alertas de pánico"
+          color="rojo"
+          icono="alerta"
+          cargando={resumen.cargando}
           valor={metricas.alertas}
           detalle={metricas.alertas ? `La más antigua, hace ${textoMinutos(metricas.alertaMasAntigua)}` : "Ninguna abierta"}
           tono={metricas.alertas ? "peligro" : null}
@@ -99,6 +124,9 @@ export default function InicioPage() {
         <Metrica
           to="/multas"
           titulo="Multas de hoy"
+          color="amarillo"
+          icono="multa"
+          cargando={resumen.cargando}
           valor={metricas.multasHoy}
           detalle={
             diferenciaMultas === 0
@@ -113,11 +141,18 @@ export default function InicioPage() {
           Necesita tu atención
         </h2>
 
-        {resumen.cargando && <p className="inicio-nota">Revisando…</p>}
+        {resumen.cargando && (
+          <div className="inicio-avisos-cargando" aria-busy="true" aria-label="Revisando si hay algo urgente">
+            <div className="esqueleto" />
+            <div className="esqueleto" />
+          </div>
+        )}
 
         {!resumen.cargando && avisos.length === 0 && (
           <div className="inicio-todo-bien">
-            <Icono nombre="check" />
+            <span className="inicio-todo-bien-icono" aria-hidden="true">
+              <Icono nombre="check" tamano={18} />
+            </span>
             Todo en orden: no hay nada urgente por ahora.
           </div>
         )}
@@ -127,7 +162,9 @@ export default function InicioPage() {
             {avisos.slice(0, MAX_AVISOS).map((aviso) => (
               <li key={aviso.clave}>
                 <button type="button" className={`inicio-aviso ${aviso.tono}`} onClick={() => abrirAviso(aviso)}>
-                  <Icono nombre={aviso.icono} />
+                  <span className="inicio-aviso-icono">
+                    <Icono nombre={aviso.icono} tamano={20} />
+                  </span>
                   <span className="inicio-aviso-texto">{aviso.texto}</span>
                   <span className="inicio-aviso-accion">{aviso.accion}</span>
                 </button>
@@ -150,28 +187,36 @@ export default function InicioPage() {
         </h2>
         <div className="inicio-accesos">
           <Link to="/operador" className="inicio-acceso">
-            <Icono nombre="bandeja" tamano={24} />
+            <span className="inicio-acceso-icono">
+              <Icono nombre="bandeja" tamano={22} />
+            </span>
             <span>
               <strong>Bandeja de decisiones</strong>
               <small>Aprobar, rechazar y revisar solicitudes</small>
             </span>
           </Link>
           <Link to="/operador" state={{ verCalles: true }} className="inicio-acceso">
-            <Icono nombre="mapa" tamano={24} />
+            <span className="inicio-acceso-icono">
+              <Icono nombre="mapa" tamano={22} />
+            </span>
             <span>
               <strong>Mapa y calles de riesgo</strong>
               <small>Servicios en terreno y calles de Santiago Centro</small>
             </span>
           </Link>
           <Link to="/multas" className="inicio-acceso">
-            <Icono nombre="multa" tamano={24} />
+            <span className="inicio-acceso-icono">
+              <Icono nombre="multa" tamano={22} />
+            </span>
             <span>
               <strong>Multas</strong>
               <small>Infracciones cursadas por los supervisores</small>
             </span>
           </Link>
           <Link to="/reporteria" className="inicio-acceso">
-            <Icono nombre="reporte" tamano={24} />
+            <span className="inicio-acceso-icono">
+              <Icono nombre="reporte" tamano={22} />
+            </span>
             <span>
               <strong>Reportería</strong>
               <small>Números del período y descargas</small>
