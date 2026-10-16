@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Icono from "../components/Icono";
+import Logo from "../components/Logo";
 import { nombreEmpresa, iniciales } from "../utils/empresa";
 import "./AppLayout.css";
 
@@ -21,7 +22,9 @@ export default function AppLayout() {
   return (
     <div className="app">
       <aside className="app-lateral">
-        <div className="app-brand">VíaSegura</div>
+                <div className="app-brand">
+          <Logo claro tamano={32} />
+        </div>
         {empresa && <div className="app-empresa">{empresa}</div>}
 
         <nav className="app-nav" aria-label="Menú principal">

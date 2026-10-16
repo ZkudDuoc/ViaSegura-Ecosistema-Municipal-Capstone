@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./AppLayout.css";
+import Logo from "../components/Logo";
 
 const NAV_LINKS = [
   { to: "/", label: "Escanear", end: true },
@@ -13,7 +14,7 @@ export default function AppLayout() {
   return (
     <div className="app">
       <header className="app-header">
-        <div className="app-brand">VíaSegura</div>
+        <Logo claro tamano={30} />
 
         <nav className="app-nav">
           {NAV_LINKS.map((link) => (

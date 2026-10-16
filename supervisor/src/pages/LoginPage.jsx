@@ -1,24 +1,24 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import "./LoginPage.css";
+import PantallaAcceso from "../components/PantallaAcceso";
 
-function IconoOjo() {
+function IconoOjo({ tachado }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function IconoOjoTachado() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2" />
-      <path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
-      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
-      <path d="M2 2l20 20" />
+      {tachado ? (
+        <>
+          <path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.2" />
+          <path d="M6.6 6.6A17.4 17.4 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+          <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+          <path d="M2 2l20 20" />
+        </>
+      ) : (
+        <>
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
     </svg>
   );
 }
@@ -44,27 +44,35 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="login-screen">
-      <form className="login-card card" onSubmit={handleSubmit}>
-        <h1>VíaSegura</h1>
-        {/* chofer-empresa: "Choferes y empresas de transporte" · supervisor: "Supervisión municipal en terreno" */}
-        <p className="subtitulo"><p className="subtitulo">Supervisión municipal en terreno</p></p>
+    <PantallaAcceso
+      titulo="Fiscalización en terreno"
+      descripcion="Escanea el QR del chofer, revisa el permiso y registra inspecciones y multas."
+      puntos={[
+        "Verifica permisos con el QR firmado",
+        "Checklist de seguridad en terreno",
+        "Multas con foto y ubicación",
+      ]}
+    >
+      <form className="acceso-form" onSubmit={handleSubmit}>
+        <h1>Iniciar sesión</h1>
+        <p className="acceso-ayuda">Ingresa con tu cuenta de supervisor municipal.</p>
 
-        <div className="campo">
+        <div className="acceso-campo">
           <label htmlFor="email">Email</label>
           <input
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="nombre@municipalidad.cl"
             autoComplete="username"
             required
           />
         </div>
 
-        <div className="campo">
+        <div className="acceso-campo">
           <label htmlFor="password">Contraseña</label>
-          <div className="password-wrapper">
+          <div className="acceso-clave">
             <input
               id="password"
               type={mostrarPassword ? "text" : "password"}
@@ -75,22 +83,26 @@ export default function LoginPage() {
             />
             <button
               type="button"
-              className="password-toggle"
+              className="acceso-ver-clave"
               onClick={() => setMostrarPassword((v) => !v)}
               aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               aria-pressed={mostrarPassword}
             >
-              {mostrarPassword ? <IconoOjoTachado /> : <IconoOjo />}
+              <IconoOjo tachado={mostrarPassword} />
             </button>
           </div>
         </div>
 
-        {error && <p className="texto-error">{error}</p>}
+        {error && (
+          <p className="acceso-error" role="alert">
+            {error}
+          </p>
+        )}
 
-        <button type="submit" className="btn-primary" disabled={loading}>
+        <button type="submit" className="acceso-boton" disabled={loading}>
           {loading ? "Ingresando…" : "Iniciar sesión"}
         </button>
       </form>
-    </div>
+    </PantallaAcceso>
   );
 }

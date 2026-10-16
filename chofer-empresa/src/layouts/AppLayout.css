@@ -1,8 +1,8 @@
-/* Escritorio: barra lateral fija a la izquierda y contenido a la derecha. */
+/* Escritorio: menú lateral azul marino a la izquierda y contenido a la derecha. */
 .app {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 248px 1fr;
 }
 
 .app-lateral {
@@ -12,22 +12,20 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 20px 14px;
-  background: var(--color-surface);
-  border-right: 1px solid var(--color-border);
+  padding: 22px 14px 16px;
+  background: var(--color-navy);
+  color: #fff;
 }
 
 .app-brand {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--color-primary-dark);
-  padding: 0 10px;
+  padding: 0 8px;
 }
 
 .app-empresa {
+  margin: 4px 0 0 50px;
+  padding-bottom: 18px;
   font-size: 13px;
-  color: var(--color-text-muted);
-  padding: 0 10px 16px;
+  color: var(--color-navy-claro);
   overflow-wrap: anywhere;
 }
 
@@ -46,18 +44,21 @@
   padding: 10px 12px;
   border-radius: 10px;
   font-size: 15px;
-  font-weight: 600;
-  color: var(--color-text-muted);
+  font-weight: 500;
+  color: #c9d6ec;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .app-nav-link:hover {
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 .app-nav-link.active {
   background: var(--color-primary);
   color: #fff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .app-nav-icono {
@@ -72,8 +73,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 12px 10px 0;
-  border-top: 1px solid var(--color-border);
+  padding: 14px 4px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
   font-size: 14px;
 }
 
@@ -83,17 +84,17 @@
   gap: 10px;
   min-height: 48px;
   padding: 6px;
-  margin: 0 -6px;
   border-radius: 10px;
-  color: var(--color-text);
+  color: #fff;
+  transition: background-color 0.15s;
 }
 
 .app-perfil:hover {
-  background: var(--color-bg);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .app-perfil.active {
-  background: #eaf1ff;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .app-avatar {
@@ -103,8 +104,8 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #dce8ff;
-  color: var(--color-primary-dark);
+  background: var(--color-primary);
+  color: #fff;
   font-size: 13px;
   font-weight: 700;
 }
@@ -122,7 +123,7 @@
 
 .app-usuario-ver {
   font-size: 12px;
-  color: var(--color-text-muted);
+  color: var(--color-navy-claro);
 }
 
 .app-logout {
@@ -131,14 +132,21 @@
   justify-content: center;
   gap: 6px;
   min-height: 44px;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
   border-radius: 10px;
   padding: 8px 12px;
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text);
+  color: #c9d6ec;
   cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.app-logout:hover {
+  border-color: var(--color-danger);
+  background: rgba(217, 45, 32, 0.25);
+  color: #fff;
 }
 
 .app-content {
@@ -148,8 +156,8 @@
   padding: 28px 20px;
 }
 
-/* Celular y tablet: arriba solo marca, empresa y Salir; el menú pasa a una
-   barra fija abajo, al alcance del pulgar. */
+/* Celular y tablet: arriba una franja azul marino con el logo, la empresa y
+   Salir; el menú pasa a una barra blanca fija abajo, al alcance del pulgar. */
 @media (max-width: 900px) {
   .app {
     display: block;
@@ -164,17 +172,19 @@
     align-items: center;
     gap: 10px;
     padding: 10px 16px;
-    border-right: none;
-    border-bottom: 1px solid var(--color-border);
   }
 
   .app-brand {
-    font-size: 18px;
     padding: 0;
+  }
+
+  .app-brand .logo-texto {
+    font-size: 18px;
   }
 
   .app-empresa {
     flex: 1;
+    margin: 0;
     padding: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -195,7 +205,6 @@
 
   .app-perfil {
     min-height: 44px;
-    margin: 0;
     padding: 4px;
   }
 
@@ -210,6 +219,7 @@
     gap: 2px;
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
+    box-shadow: 0 -2px 10px rgba(15, 23, 42, 0.06);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   }
 
@@ -222,6 +232,18 @@
     padding: 6px 2px;
     font-size: 11px;
     text-align: center;
+    color: var(--color-text-muted);
+  }
+
+  .app-nav-link:hover {
+    background: var(--color-bg);
+    color: var(--color-text);
+  }
+
+  .app-nav-link.active {
+    background: var(--color-primary-suave);
+    color: var(--color-primary);
+    box-shadow: none;
   }
 
   .app-nav-texto-largo {
