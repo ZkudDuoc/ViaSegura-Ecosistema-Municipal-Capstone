@@ -360,7 +360,7 @@ export default function TrabajadoresPage() {
         ))}
       </div>
 
-      {cargando && <p className="subtitulo">Cargando trabajadores…</p>}
+        {cargando && <ListaCargando filas={3} etiqueta="Cargando trabajadores" />}
 
       {error && (
         <div className="card">
