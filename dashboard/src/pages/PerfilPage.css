@@ -19,10 +19,13 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 14px;
+  box-shadow: var(--sombra-suave);
 }
 
 .perfil-tarjeta h2 {
   margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border);
   font-size: 17px;
 }
 

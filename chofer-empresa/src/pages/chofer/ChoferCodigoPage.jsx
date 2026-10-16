@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useChofer } from "../../context/ChoferContext";
 import { mensajeError } from "../../services/choferApi";
-import "../LoginPage.css";
+import PantallaAcceso from "../../components/PantallaAcceso";
 
 export default function ChoferCodigoPage() {
   const { sesiones, agregarCodigo } = useChofer();
@@ -30,14 +30,18 @@ export default function ChoferCodigoPage() {
   };
 
   return (
-    <div className="login-screen">
-      <form className="login-card card" onSubmit={handleSubmit}>
+    <PantallaAcceso
+      titulo="Tu servicio en la mano, sin crear cuenta"
+      descripcion="Con el código que te mandó tu empresa ves el permiso, envías la foto de inicio y tienes el botón de pánico."
+      puntos={["Muestra el QR al supervisor", "Envía la evidencia al llegar", "Pide ayuda con un toque"]}
+    >
+      <form className="acceso-form" onSubmit={handleSubmit}>
         <h1>¿Eres chofer?</h1>
-        <p className="subtitulo">
+        <p className="acceso-ayuda">
           Ingresa el código que te envió tu empresa para ver tu servicio. No necesitas cuenta.
         </p>
 
-        <div className="campo">
+        <div className="acceso-campo">
           <label htmlFor="codigo">Código del servicio</label>
           <input
             id="codigo"
@@ -51,24 +55,26 @@ export default function ChoferCodigoPage() {
           />
         </div>
 
-        {error && <p className="texto-error">{error}</p>}
+        {error && (
+          <p className="acceso-error" role="alert">
+            {error}
+          </p>
+        )}
 
-        <button type="submit" className="btn-primary" disabled={!codigo.trim() || enviando}>
+        <button type="submit" className="acceso-boton" disabled={!codigo.trim() || enviando}>
           {enviando ? "Verificando…" : "Entrar"}
         </button>
 
         {sesiones.length > 0 && (
-          <Link to="/chofer/servicios" className="btn-secondary btn-accion">
+          <Link to="/chofer/servicios" className="acceso-secundario">
             Ya tengo servicios: ver mis servicios
           </Link>
         )}
 
-        <p className="login-alternativa">
-          <Link to="/login" className="enlace">
-            Volver al ingreso de empresas
-          </Link>
+        <p className="acceso-alternativa">
+          <Link to="/login">Volver al ingreso de empresas</Link>
         </p>
       </form>
-    </div>
+    </PantallaAcceso>
   );
 }
