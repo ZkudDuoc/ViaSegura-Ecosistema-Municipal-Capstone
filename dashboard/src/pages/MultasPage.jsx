@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import PuntoMapa from "../components/PuntoMapa";
+import Icono from "../components/Icono";
+import { ListaCargando, ListaVacia } from "../components/EstadoLista";
 import { listarInfracciones } from "../services/infraccionService";
 import { getApiErrorMessage } from "../services/api";
 import { formatearFecha, codigoCorto } from "../utils/permisos";
@@ -164,17 +166,32 @@ export default function MultasPage() {
       <p className="page-subtitle">Infracciones cursadas por los supervisores en terreno.</p>
 
       <div className="multas-resumen">
-        <div className="multas-cifra">
-          <span className="multas-cifra-valor">{visibles.length}</span>
-          <span className="multas-cifra-label">Multas en el período</span>
+        <div className="multas-cifra cifra-amarilla">
+          <span className="multas-cifra-cabecera">
+            <span className="multas-cifra-label">Multas en el período</span>
+            <span className="multas-cifra-icono">
+              <Icono nombre="multa" tamano={18} />
+            </span>
+          </span>
+          <span className="multas-cifra-valor">{cargando ? "—" : visibles.length}</span>
         </div>
-        <div className="multas-cifra">
-          <span className="multas-cifra-valor">{conPermiso}</span>
-          <span className="multas-cifra-label">Con permiso</span>
+        <div className="multas-cifra cifra-azul">
+          <span className="multas-cifra-cabecera">
+            <span className="multas-cifra-label">Con permiso</span>
+            <span className="multas-cifra-icono">
+              <Icono nombre="check" tamano={18} />
+            </span>
+          </span>
+          <span className="multas-cifra-valor">{cargando ? "—" : conPermiso}</span>
         </div>
-        <div className="multas-cifra">
-          <span className="multas-cifra-valor">{visibles.length - conPermiso}</span>
-          <span className="multas-cifra-label">Sin permiso</span>
+        <div className="multas-cifra cifra-roja">
+          <span className="multas-cifra-cabecera">
+            <span className="multas-cifra-label">Sin permiso</span>
+            <span className="multas-cifra-icono">
+              <Icono nombre="alerta" tamano={18} />
+            </span>
+          </span>
+          <span className="multas-cifra-valor">{cargando ? "—" : visibles.length - conPermiso}</span>
         </div>
       </div>
 
@@ -195,52 +212,64 @@ export default function MultasPage() {
         </select>
       </div>
 
-      {cargando && <p className="page-subtitle">Cargando multas…</p>}
+      {cargando && (
+        <div className="multas-lista">
+          <ListaCargando tipo="tabla" filas={5} etiqueta="Cargando multas" />
+        </div>
+      )}
       {error && <p className="pending-banner error-banner">{error}</p>}
 
-      {!cargando && !error && (
-        <table className="solicitudes-table">
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Infracción</th>
-              <th>RUT</th>
-              <th>Solicitud</th>
-              <th>Foto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibles.length === 0 && (
+      {!cargando && !error && visibles.length === 0 && (
+        <div className="multas-lista">
+          <ListaVacia
+            icono="multa"
+            titulo={multas.length === 0 ? "Todavía no hay multas registradas" : "Ninguna multa coincide"}
+          >
+            {multas.length === 0
+              ? "Cuando un supervisor curse una infracción en terreno, aparecerá aquí."
+              : "Prueba con otro período o revisa lo que escribiste en la búsqueda."}
+          </ListaVacia>
+        </div>
+      )}
+
+      {!cargando && !error && visibles.length > 0 && (
+        <div className="tabla-contenedor multas-lista">
+          <table className="solicitudes-table">
+            <thead>
               <tr>
-                <td colSpan={5} className="page-subtitle">
-                  {multas.length === 0 ? "Todavía no hay multas registradas" : "Ninguna multa coincide con la búsqueda"}
-                </td>
+                <th>Fecha</th>
+                <th>Infracción</th>
+                <th>RUT</th>
+                <th>Solicitud</th>
+                <th>Foto</th>
               </tr>
-            )}
-            {visibles.map((m) => {
-              const { tipo } = separarDescripcion(m.descripcion);
-              return (
-                <tr key={m.id} className="fila-clicable" onClick={() => setSeleccionada(m)}>
-                  <td className="celda-sub">{formatearFecha(m.fecha)}</td>
-                  <td>
-                    <button type="button" className="multa-link" onClick={() => setSeleccionada(m)}>
-                      {tipo}
-                    </button>
-                  </td>
-                  <td>{m.rut_infractor}</td>
-                  <td>
-                    {m.permiso_id ? (
-                      <span className="link-detalle">{codigoCorto(m.permiso_id)}</span>
-                    ) : (
-                      <span className="badge-emergencia">Sin permiso</span>
-                    )}
-                  </td>
-                  <td>{m.evidencia_url ? <img src={m.evidencia_url} alt="" className="detalle-multa-foto" /> : "—"}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visibles.map((m) => {
+                const { tipo } = separarDescripcion(m.descripcion);
+                return (
+                  <tr key={m.id} className="fila-clicable" onClick={() => setSeleccionada(m)}>
+                    <td className="celda-sub">{formatearFecha(m.fecha)}</td>
+                    <td>
+                      <button type="button" className="multa-link" onClick={() => setSeleccionada(m)}>
+                        {tipo}
+                      </button>
+                    </td>
+                    <td>{m.rut_infractor}</td>
+                    <td>
+                      {m.permiso_id ? (
+                        <span className="link-detalle">{codigoCorto(m.permiso_id)}</span>
+                      ) : (
+                        <span className="badge-emergencia">Sin permiso</span>
+                      )}
+                    </td>
+                    <td>{m.evidencia_url ? <img src={m.evidencia_url} alt="" className="detalle-multa-foto" /> : "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {seleccionada && <MultaDetalle multa={seleccionada} onCerrar={() => setSeleccionada(null)} />}
