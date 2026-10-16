@@ -9,11 +9,13 @@ import {
 } from "../services/trabajadorService";
 import { getApiErrorMessage } from "../services/api";
 import { formatearRut } from "../utils/rut";
+import { iniciales } from "../utils/empresa";
 import { estadoVigencia, formatearDia, VIGENCIA_CLASE, VIGENCIA_TEXTO } from "../utils/vigencia";
 import { leerNominaCsv, PLANTILLA_CSV } from "../utils/nominaCsv";
 import useDebounce from "../hooks/useDebounce";
 import BarraBusqueda from "../components/BarraBusqueda";
 import TrabajadorForm from "../components/TrabajadorForm";
+import { ListaCargando, ListaVacia } from "../components/EstadoLista";
 import "./paginas.css";
 import "./trabajadores.css";
 
@@ -81,7 +83,10 @@ function TarjetaTrabajador({ trabajador, puedeEditar, onCambiado }) {
       ) : (
         <>
           <div className="trabajador-cabecera">
-            <div>
+            <span className="trabajador-avatar" aria-hidden="true">
+              {iniciales(trabajador.nombre)}
+            </span>
+            <div className="trabajador-datos">
               <div className="trabajador-nombre">{trabajador.nombre}</div>
               <div className="permiso-detalle">
                 {formatearRut(trabajador.rut)}
@@ -367,13 +372,22 @@ export default function TrabajadoresPage() {
       )}
 
       {sinResultados && (
-        <div className="card vacio">
+                <ListaVacia
+          icono="trabajadores"
+          titulo={
+            q
+              ? `No encontramos trabajadores con "${q}"`
+              : filtro === "false"
+                ? "No hay trabajadores dados de baja"
+                : "Todavía no hay trabajadores en tu nómina"
+          }
+        >
           {q
-            ? `No encontramos trabajadores con "${q}".`
+            ? "Prueba con otra parte del nombre o con el RUT sin puntos."
             : filtro === "false"
-              ? "No hay trabajadores dados de baja."
-              : "Todavía no hay trabajadores en tu nómina. Agrégalos uno por uno o impórtalos desde un archivo."}
-        </div>
+              ? null
+              : "Agrégalos uno por uno o impórtalos todos juntos desde un archivo."}
+        </ListaVacia>
       )}
 
       {!cargando && trabajadores.length > 0 && (

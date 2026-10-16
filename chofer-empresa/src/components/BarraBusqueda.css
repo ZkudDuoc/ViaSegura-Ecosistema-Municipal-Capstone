@@ -6,6 +6,7 @@
   display: block;
   font-size: 13px;
   font-weight: 600;
+  color: #334155;
   margin-bottom: 6px;
 }
 
@@ -25,11 +26,22 @@
 .barra-busqueda-campo input {
   width: 100%;
   min-height: 48px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border: 1px solid var(--color-border-fuerte);
+  border-radius: var(--radio);
   padding: 12px 92px 12px 42px;
   background: var(--color-surface);
   color: var(--color-text);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.barra-busqueda-campo input::placeholder {
+  color: #94a3b8;
+}
+
+.barra-busqueda-campo input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: var(--anillo-foco);
 }
 
 /* El navegador agrega su propia "x" en type=search: se oculta para no tener dos. */
@@ -44,8 +56,8 @@
   padding: 6px 12px;
   border: none;
   border-radius: 8px;
-  background: var(--color-bg);
-  color: var(--color-primary-dark);
+  background: var(--color-primary-suave);
+  color: var(--color-primary-hover);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;

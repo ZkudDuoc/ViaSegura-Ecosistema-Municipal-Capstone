@@ -4,7 +4,10 @@ import { crearVehiculo, buscarVehiculos, actualizarVehiculo, darDeBajaVehiculo }
 import { getApiErrorMessage } from "../services/api";
 import useDebounce from "../hooks/useDebounce";
 import BarraBusqueda from "../components/BarraBusqueda";
+import Icono from "../components/Icono";
+import { ListaCargando, ListaVacia } from "../components/EstadoLista";
 import "./paginas.css";
+import "./camiones.css";
 
 const POR_PAGINA = 20;
 
@@ -101,8 +104,11 @@ function TarjetaCamion({ vehiculo, puedeEditar, onCambiado }) {
   };
 
   return (
-    <li className="card">
-      <div className="permiso-cabecera">
+        <li className="card camion">
+      <div className="camion-cabecera">
+        <span className="camion-icono">
+          <Icono nombre="camion" tamano={22} />
+        </span>
         <span className="patente">{vehiculo.patente}</span>
         {puedeEditar && !editando && (
           <div className="camion-acciones">
@@ -129,10 +135,24 @@ function TarjetaCamion({ vehiculo, puedeEditar, onCambiado }) {
           </div>
         </form>
       ) : (
-        <div className="permiso-detalle">
-          {Number(vehiculo.largo_m)} m largo × {Number(vehiculo.ancho_m)} m ancho × {Number(vehiculo.alto_m)} m alto ·{" "}
-          {Number(vehiculo.peso_ton)} ton
-        </div>
+                <dl className="camion-medidas">
+          <div>
+            <dt>Largo</dt>
+            <dd>{Number(vehiculo.largo_m)} m</dd>
+          </div>
+          <div>
+            <dt>Ancho</dt>
+            <dd>{Number(vehiculo.ancho_m)} m</dd>
+          </div>
+          <div>
+            <dt>Alto</dt>
+            <dd>{Number(vehiculo.alto_m)} m</dd>
+          </div>
+          <div>
+            <dt>Peso</dt>
+            <dd>{Number(vehiculo.peso_ton)} ton</dd>
+          </div>
+        </dl>
       )}
 
       {error && <p className="texto-error">{error}</p>}
@@ -247,7 +267,7 @@ export default function CamionesPage() {
         </form>
       )}
 
-      <h2 className="paso-titulo">Camiones registrados</h2>
+        <h2 className="paso-titulo camiones-titulo-lista">Camiones registrados</h2>
 
       {mensaje && (
         <p className="texto-exito" role="status">
@@ -263,7 +283,7 @@ export default function CamionesPage() {
         etiqueta="Buscar camión"
       />
 
-      {cargando && <p className="subtitulo">Cargando camiones…</p>}
+        {cargando && <ListaCargando filas={3} etiqueta="Cargando camiones" />}
 
       {errorLista && (
         <div className="card">
@@ -275,13 +295,20 @@ export default function CamionesPage() {
       )}
 
       {!cargando && !errorLista && vehiculos.length === 0 && (
-        <div className="card vacio">
-          {q ? `No encontramos camiones con la patente "${q}".` : "Todavía no registras camiones."}
-        </div>
+        <ListaVacia
+          icono="camion"
+          titulo={q ? `No encontramos camiones con la patente "${q}"` : "Todavía no registras camiones"}
+        >
+          {q
+            ? "Revisa que la patente esté bien escrita, sin puntos ni guiones."
+            : puedeEditar
+              ? "Regístralos con el formulario de arriba para poder usarlos en tus solicitudes."
+              : "El administrador de tu empresa puede registrarlos."}
+        </ListaVacia>
       )}
 
       {!cargando && vehiculos.length > 0 && (
-        <ul className="lista-permisos">
+          <ul className="lista-permisos lista-camiones">
           {vehiculos.map((v) => (
             <TarjetaCamion key={v.id} vehiculo={v} puedeEditar={puedeEditar} onCambiado={alCambiar} />
           ))}

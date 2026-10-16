@@ -1,37 +1,56 @@
 .encabezado-fila .solicitudes-nueva {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   width: auto;
   padding: 10px 16px;
   text-align: center;
 }
 
-/* Filtros rápidos: botones que se acomodan en varias líneas. */
+/* Filtros: la búsqueda arriba, las fechas en dos columnas y los estados como pastillas. */
+.solicitudes-filtros .paso-titulo {
+  margin-bottom: 14px;
+}
+
+.filtro-etiqueta {
+  display: block;
+  margin: 4px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
 .filtro-grupo {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .filtro-chip {
-  min-height: 40px;
-  padding: 8px 14px;
-  border: 1px solid var(--color-border);
+  min-height: 38px;
+  padding: 7px 14px;
+  border: 1px solid var(--color-border-fuerte);
   border-radius: 999px;
   background: var(--color-surface);
-  color: var(--color-text);
+  color: #334155;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .filtro-chip:hover {
   border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .filtro-chip.activo {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
+  background: var(--color-navy);
+  border-color: var(--color-navy);
   color: #fff;
+  font-weight: 600;
 }
 
 /* Tabla: en escritorio son columnas; en el celular cada fila es una tarjeta. */
@@ -40,7 +59,8 @@
   flex-direction: column;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 14px;
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-suave);
   overflow: hidden;
 }
 
@@ -49,9 +69,10 @@
   grid-template-columns: 0.9fr 0.9fr 1.6fr 1.2fr 0.9fr 0.8fr;
   align-items: center;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 13px 16px;
   border-bottom: 1px solid var(--color-border);
   font-size: 14px;
+  transition: background-color 0.12s;
 }
 
 .tabla-fila:last-child {
@@ -60,13 +81,17 @@
 
 a.tabla-fila:hover,
 a.tabla-fila:focus-visible {
-  background: #eef4ff;
+  background: #f5f8fd;
+  box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
 .tabla-cabecera {
-  background: var(--color-bg);
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: #f8fafc;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
@@ -74,6 +99,7 @@ a.tabla-fila:focus-visible {
 .celda-codigo {
   font-family: ui-monospace, Consolas, monospace;
   font-weight: 700;
+  color: var(--color-navy);
 }
 
 .celda-fechas {
@@ -86,11 +112,23 @@ a.tabla-fila:focus-visible {
   color: var(--color-text-muted);
 }
 
+.celda-riesgo {
+  color: #334155;
+}
+
 .solicitudes-ver-mas {
   margin-top: 16px;
 }
 
 @media (max-width: 760px) {
+  .tabla-solicitudes {
+    gap: 10px;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
   .tabla-cabecera {
     display: none;
   }
@@ -104,6 +142,14 @@ a.tabla-fila:focus-visible {
       "riesgo riesgo";
     gap: 6px 10px;
     padding: 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radio-tarjeta);
+    box-shadow: var(--sombra-suave);
+  }
+
+  .tabla-fila:last-child {
+    border-bottom: 1px solid var(--color-border);
   }
 
   .tabla-fila > :nth-child(1) { grid-area: codigo; }
