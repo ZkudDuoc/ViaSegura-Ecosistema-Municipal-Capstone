@@ -119,10 +119,16 @@ export default function InicioPage() {
       <nav className="inicio-accesos" aria-label="Accesos rápidos">
         {accesos(resumen).map((a) => (
           <Link key={a.to} to={a.to} className={"inicio-acceso" + (a.destacada ? " destacada" : "")}>
-            <Icono nombre={a.icono} tamano={32} className="inicio-acceso-icono" />
+            <span className="inicio-acceso-icono">
+              <Icono nombre={a.icono} tamano={24} />
+            </span>
             <span className="inicio-acceso-titulo">{a.titulo}</span>
             <span className="inicio-acceso-descripcion">{a.descripcion}</span>
-            {a.contador && <span className="inicio-acceso-contador">{a.contador}</span>}
+            {a.contador ? (
+              <span className="inicio-acceso-contador">{a.contador}</span>
+            ) : (
+              cargando && !a.destacada && <span className="esqueleto inicio-contador-esqueleto" aria-hidden="true" />
+            )}
           </Link>
         ))}
       </nav>
@@ -132,7 +138,12 @@ export default function InicioPage() {
           Avisos
         </h2>
 
-        {cargando && <p className="subtitulo">Revisando si hay avisos…</p>}
+        {cargando && (
+          <div className="inicio-avisos-cargando" aria-busy="true" aria-label="Revisando si hay avisos">
+            <div className="esqueleto" />
+            <div className="esqueleto" />
+          </div>
+        )}
 
         {!cargando && error && (
           <div className="card inicio-error">
@@ -144,7 +155,14 @@ export default function InicioPage() {
         )}
 
         {!cargando && !error && listaAvisos.length === 0 && (
-          <div className="card inicio-sin-avisos">Todo en orden: no tienes avisos pendientes.</div>
+          <div className="inicio-sin-avisos">
+            <span className="inicio-sin-avisos-icono" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12l5 5 9-10" />
+              </svg>
+            </span>
+            Todo en orden: no tienes avisos pendientes.
+          </div>
         )}
 
         {!cargando && !error && listaAvisos.length > 0 && (
@@ -152,7 +170,9 @@ export default function InicioPage() {
             {listaAvisos.map((aviso) => (
               <li key={aviso.texto}>
                 <Link to={aviso.to} className={"inicio-aviso" + (aviso.urgente ? " urgente" : "")}>
-                  <Icono nombre={aviso.icono} className="inicio-aviso-icono" />
+                  <span className="inicio-aviso-icono">
+                    <Icono nombre={aviso.icono} tamano={20} />
+                  </span>
                   <span className="inicio-aviso-texto">{aviso.texto}</span>
                   <span className="inicio-aviso-accion">{aviso.accion}</span>
                 </Link>
