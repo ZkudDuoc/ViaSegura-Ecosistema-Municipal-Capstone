@@ -6,15 +6,28 @@
 }
 
 .lector.activo {
-  border: 2px dashed var(--color-primary);
+  border: 3px solid var(--color-primary);
   min-height: 260px;
   background: #000;
+  box-shadow: 0 0 0 4px var(--color-primary-suave);
+}
+
+/* Botón principal de la app: grande, con ícono de QR, para usar con una mano. */
+.btn-escanear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 60px;
+  font-size: 18px;
+  box-shadow: 0 6px 16px rgba(31, 111, 209, 0.3);
 }
 
 .busqueda-manual {
   margin-top: 24px;
 }
 
+/* Resultado del permiso: franja grande verde o roja que se lee de lejos. */
 .veredicto {
   display: flex;
   flex-direction: column;
@@ -22,9 +35,10 @@
   gap: 4px;
   text-align: center;
   border-radius: 14px;
-  padding: 20px 16px;
+  padding: 22px 16px;
   margin: 12px 0 16px;
   color: #fff;
+  box-shadow: var(--sombra-media);
 }
 
 .veredicto strong {
@@ -38,11 +52,11 @@
 }
 
 .veredicto.vigente {
-  background: var(--color-success);
+  background: linear-gradient(135deg, #16a34a, #15803d);
 }
 
 .veredicto.no-vigente {
-  background: var(--color-danger);
+  background: linear-gradient(135deg, #d92d20, #b42318);
 }
 
 .resultado-patente {
@@ -57,8 +71,9 @@
 }
 
 .datos-permiso dt {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: var(--color-text-muted);
 }
@@ -67,11 +82,12 @@
   margin: 2px 0 0;
   font-size: 15px;
   font-weight: 600;
+  color: var(--color-navy);
   word-break: break-word;
 }
 
 .campo textarea {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-fuerte);
   border-radius: 10px;
   padding: 12px 14px;
   background: var(--color-surface);
@@ -97,16 +113,27 @@
   min-width: 0;
 }
 
+.multa-item {
+  border-left: 4px solid var(--color-danger);
+}
+
 .multa-foto {
   width: 64px;
   height: 64px;
   object-fit: cover;
   border-radius: 8px;
+  border: 1px solid var(--color-border);
   flex-shrink: 0;
 }
 
 .btn-multa {
   background: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.btn-multa:hover:not(:disabled) {
+  background: #b42318;
+  border-color: #b42318;
 }
 .btn-inspeccion {
   margin: 0 0 16px;
@@ -148,21 +175,25 @@
   gap: 6px;
 }
 
+.lista-registrados strong {
+  color: var(--color-navy);
+}
+
 .indicador {
   font-size: 12px;
-  font-weight: 700;
-  padding: 3px 8px;
+  font-weight: 600;
+  padding: 3px 10px;
   border-radius: 999px;
 }
 
 .indicador.ok {
-  background: #e1f5ea;
-  color: #13774a;
+  background: #dcfce7;
+  color: #166534;
 }
 
 .indicador.no {
-  background: #fde4e2;
-  color: #b3261e;
+  background: #fee4e2;
+  color: #b42318;
 }
 
 .checklist-punto {
@@ -183,15 +214,17 @@
 }
 
 .checklist-titulo {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--color-text-muted);
+  color: var(--color-primary);
 }
 
 .checklist-pregunta {
   font-size: 16px;
   font-weight: 600;
+  color: var(--color-navy);
 }
 
 .checklist-referencia {
@@ -199,7 +232,8 @@
   padding: 8px 10px 8px 26px;
   font-size: 13px;
   background: var(--color-bg);
-  border-radius: 8px;
+  border-left: 3px solid var(--color-border-fuerte);
+  border-radius: 0 8px 8px 0;
   color: var(--color-text);
 }
 
@@ -213,14 +247,28 @@ p.checklist-referencia {
   gap: 8px;
 }
 
+/* Sí / No: botones grandes para tocar con el pulgar en terreno. */
 .si-no button {
+  min-height: 52px;
   padding: 12px;
   border-radius: 10px;
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border-fuerte);
   background: var(--color-surface);
+  color: var(--color-navy);
   font-weight: 700;
   font-size: 16px;
   cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.si-no button.si:hover:not(.activo) {
+  border-color: var(--color-success);
+  color: #166534;
+}
+
+.si-no button.no:hover:not(.activo) {
+  border-color: var(--color-danger);
+  color: #b42318;
 }
 
 .si-no button.si.activo {
@@ -248,10 +296,22 @@ p.checklist-referencia {
 
 .btn-aprobar {
   background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.btn-aprobar:hover:not(:disabled) {
+  background: #15803d;
+  border-color: #15803d;
 }
 
 .btn-suspender {
   background: #7f1d1d;
+  border-color: #7f1d1d;
+}
+
+.btn-suspender:hover:not(:disabled) {
+  background: #651717;
+  border-color: #651717;
 }
 .recientes {
   margin-top: 16px;
@@ -271,16 +331,24 @@ p.checklist-referencia {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
+  min-height: 52px;
   padding: 12px;
   border-radius: 10px;
   border: 1px solid var(--color-border);
   background: var(--color-bg);
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.reciente-item:hover {
+  border-color: #b9cdee;
+  background: var(--color-primary-suave);
 }
 
 .reciente-codigo {
   font-family: ui-monospace, Consolas, monospace;
   font-weight: 700;
   letter-spacing: 1px;
+  color: var(--color-navy);
 }
 
 .reciente-info {
