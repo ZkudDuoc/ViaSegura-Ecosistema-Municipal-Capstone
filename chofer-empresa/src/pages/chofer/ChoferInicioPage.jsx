@@ -4,6 +4,8 @@ import { useChofer } from "../../context/ChoferContext";
 import { obtenerServicio } from "../../services/choferApi";
 import ServicioActual from "../../components/chofer/ServicioActual";
 import BotonPanico from "../../components/chofer/BotonPanico";
+import Logo from "../../components/Logo";
+import { ListaCargando } from "../../components/EstadoLista";
 import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../../utils/formato";
 import "../paginas.css";
 import "../detalle.css";
@@ -98,7 +100,7 @@ export default function ChoferInicioPage() {
   return (
     <div className="chofer-app">
       <header className="chofer-header">
-        <strong className="app-brand">VíaSegura</strong>
+                <Logo claro tamano={28} />
         <div className="chofer-header-acciones">
           <Link to="/chofer" className="btn-link">
             Agregar código
@@ -121,7 +123,7 @@ export default function ChoferInicioPage() {
 
         <section className="chofer-mitad">
           <h1>Servicio actual</h1>
-          {cargando && <p className="subtitulo">Cargando…</p>}
+          {cargando && <ListaCargando filas={1} etiqueta="Cargando tu servicio" />}
           {!cargando && actual && (
             <ServicioActual servicio={actual} token={tokenDe(actual.id)} onActualizado={cargar} />
           )}
@@ -137,7 +139,7 @@ export default function ChoferInicioPage() {
         </section>
 
         <section className="chofer-mitad">
-          <div className="bandeja-tabs" role="tablist">
+          <div className="chips bandeja-tabs" role="tablist">
             <button
               type="button"
               role="tab"

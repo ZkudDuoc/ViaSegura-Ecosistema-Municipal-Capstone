@@ -4,6 +4,7 @@
   flex-direction: column;
 }
 
+/* Barra de arriba azul marino, igual que en la app de empresa y la de supervisor. */
 .chofer-header {
   position: sticky;
   top: 0;
@@ -11,21 +12,38 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 16px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  padding: 10px 16px;
+  background: var(--color-navy);
+  color: #fff;
+}
+
+.chofer-header .logo-texto {
+  font-size: 18px;
 }
 
 .chofer-header-acciones {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+}
+
+.chofer-header .btn-link {
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: #e6edf8;
+}
+
+.chofer-header .btn-link:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
 }
 
 .chofer-contenido {
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 20px 16px 32px;
 }
 
 .chofer-mitad {
@@ -48,15 +66,17 @@
 }
 
 .chofer-aviso.ok {
-  background: #e1f5ea;
-  color: #13774a;
-  border: 1px solid var(--color-success);
+  background: #f0fbf3;
+  color: #166534;
+  border: 1px solid #bbe5c8;
+  border-left: 4px solid var(--color-success);
 }
 
 .chofer-aviso.error {
-  background: #fde4e2;
+  background: #fdeceb;
   color: #8c1d15;
-  border: 1px solid var(--color-danger);
+  border: 1px solid #f5c2bd;
+  border-left: 4px solid var(--color-danger);
 }
 
 .chofer-aviso button {
@@ -68,10 +88,12 @@
   cursor: pointer;
 }
 
+/* Servicio actual: tarjeta destacada con franja azul a la izquierda. */
 .servicio-actual {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  border-left: 4px solid var(--color-primary);
 }
 
 .servicio-resumen {
@@ -92,6 +114,7 @@
   align-items: center;
   gap: 8px;
   font-size: 17px;
+  color: var(--color-navy);
 }
 
 .servicio-toque {
@@ -117,6 +140,9 @@
   width: 100%;
   max-width: 300px;
   height: auto;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
   background: #fff;
 }
 
@@ -124,7 +150,8 @@
   margin: 0;
   font-family: ui-monospace, Consolas, monospace;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  color: var(--color-navy);
 }
 
 .servicio-acciones {
@@ -138,8 +165,12 @@
   text-align: center;
 }
 
+/* Botón de pánico: en una tarjeta con un tinte rojo muy suave. */
 .chofer-panico {
   margin-top: 16px;
+  padding: 20px 16px;
+  background: #fffafa;
+  border-color: #f5d0cc;
 }
 
 .panico-chofer {
@@ -157,12 +188,13 @@
   border-radius: 50%;
   border: none;
   overflow: hidden;
-  background: var(--color-danger);
+  background: radial-gradient(circle at 50% 35%, #ef4444, var(--color-danger) 60%, #b42318);
   color: #fff;
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 800;
+  letter-spacing: 2px;
   cursor: pointer;
-  box-shadow: 0 0 0 8px rgba(228, 72, 59, 0.15);
+  box-shadow: 0 0 0 10px rgba(217, 45, 32, 0.12), 0 10px 24px rgba(217, 45, 32, 0.35);
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
@@ -209,8 +241,6 @@
 }
 
 .bandeja-tabs {
-  display: flex;
-  gap: 8px;
   margin-bottom: 12px;
 }
 
@@ -232,10 +262,15 @@
   border-radius: 12px;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
+  box-shadow: var(--sombra-suave);
+}
+
+.mini-servicio strong {
+  color: var(--color-navy);
 }
 
 .mini-servicio > div {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
+} 
