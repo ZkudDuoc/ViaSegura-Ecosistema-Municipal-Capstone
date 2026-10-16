@@ -10,12 +10,26 @@ import { ESTADO_LABEL } from "../utils/formato";
 import { validarRut } from "../utils/rut";
 import UbicacionPicker from "../components/UbicacionPicker";
 import SelectorTrabajadores from "../components/SelectorTrabajadores";
+import { ListaCargando, ListaVacia } from "../components/EstadoLista";
 import "./paginas.css";
+import "./solicitud.css";
 
 const TIPOS_ACTIVIDAD = [
   { value: "PROGRAMADA", label: "Programada" },
   { value: "EMERGENCIA", label: "Emergencia" },
 ];
+
+// Título de cada sección del formulario, con su número en un círculo.
+function TituloPaso({ numero, children }) {
+  return (
+    <h2 className="paso-titulo paso-numerado">
+      <span className="paso-numero" aria-hidden="true">
+        {numero}
+      </span>
+      {children}
+    </h2>
+  );
+}
 
 export default function SolicitudPage() {
   const { usuario } = useAuth();
@@ -115,7 +129,12 @@ export default function SolicitudPage() {
 
   if (resultado) {
     return (
-      <div className="card">
+      <div className="card solicitud-enviada">
+        <span className="solicitud-enviada-icono" aria-hidden="true">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 12l5 5 9-10" />
+          </svg>
+        </span>
         <h1>Solicitud enviada</h1>
         <p className="texto-exito">
           Estado: {ESTADO_LABEL[resultado.estado] ?? resultado.estado}
@@ -146,30 +165,31 @@ export default function SolicitudPage() {
     );
   }
 
-  if (vehiculos === null) return <p className="subtitulo">Cargando…</p>;
+  if (vehiculos === null) return <ListaCargando filas={3} etiqueta="Cargando tus camiones" />;
 
   if (vehiculos.length === 0) {
     return (
       <div>
         <h1>Nueva solicitud</h1>
-        <div className="card vacio">
-          Para crear una solicitud primero registra al menos un camión.{" "}
-          <Link to="/camiones" className="enlace">
+        <ListaVacia icono="camion" titulo="Primero registra un camión">
+          Sus medidas se usan para calcular el área de trabajo de la solicitud.
+          <br />
+          <Link to="/camiones" className="btn-primary">
             Registrar camión
           </Link>
-        </div>
+        </ListaVacia>
         {error && <p className="texto-error">{error}</p>}
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form className="solicitud-form" onSubmit={handleSubmit}>
       <h1>Nueva solicitud</h1>
       <p className="subtitulo">Completa las 5 secciones. El área de trabajo se calcula sola.</p>
 
       <section className="card paso">
-        <h2 className="paso-titulo">1. Camión principal</h2>
+        <TituloPaso numero={1}>Camión principal</TituloPaso>
         <div className="campo">
           <label htmlFor="vehiculo">Camión</label>
           <select id="vehiculo" value={vehiculoId} onChange={handleVehiculo} required>
@@ -184,7 +204,7 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <h2 className="paso-titulo">2. Ubicación del trabajo</h2>
+        <TituloPaso numero={2}>Ubicación del trabajo</TituloPaso>
         {vehiculo ? (
           <UbicacionPicker vehiculo={vehiculo} onChange={setAreaCalculada} />
         ) : (
@@ -199,7 +219,7 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <h2 className="paso-titulo">3. Datos del servicio</h2>
+        <TituloPaso numero={3}>Datos del servicio</TituloPaso>
 
         <div className="campo">
           <label htmlFor="comuna">Comuna</label>
@@ -263,7 +283,7 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <h2 className="paso-titulo">4. Personal que va a terreno</h2>
+        <TituloPaso numero={4}>Personal que va a terreno</TituloPaso>
         <p className="permiso-detalle">
           Marca a las personas de tu nómina que irán al trabajo, incluido el chofer.{" "}
           <Link to="/trabajadores" className="enlace">
@@ -274,7 +294,7 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <h2 className="paso-titulo">5. Maquinaria adicional (opcional)</h2>
+        <TituloPaso numero={5}>Maquinaria adicional (opcional)</TituloPaso>
         {otrosVehiculos.length === 0 ? (
           <p className="permiso-detalle">
             No tienes otros camiones registrados.{" "}
@@ -301,16 +321,18 @@ export default function SolicitudPage() {
         )}
       </section>
 
-      {error && <p className="texto-error">{error}</p>}
+      <div className="solicitud-enviar">
+        {error && <p className="texto-error">{error}</p>}
 
-      <button type="submit" className="btn-primary" disabled={!formularioValido || enviando}>
-        {enviando ? "Enviando…" : "Enviar solicitud"}
-      </button>
-      {!formularioValido && (
-        <p className="permiso-detalle formulario-ayuda">
-          Para enviar: camión, ubicación, comuna, RUT, fechas y al menos una persona del personal.
-        </p>
-      )}
+        <button type="submit" className="btn-primary" disabled={!formularioValido || enviando}>
+          {enviando ? "Enviando…" : "Enviar solicitud"}
+        </button>
+        {!formularioValido && (
+          <p className="permiso-detalle formulario-ayuda">
+            Para enviar: camión, ubicación, comuna, RUT, fechas y al menos una persona del personal.
+          </p>
+        )}
+      </div>
     </form>
   );
 }

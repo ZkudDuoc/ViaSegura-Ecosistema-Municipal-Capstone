@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getApiErrorMessage } from "../services/api";
 import { formatearRut, normalizarRut, validarRut } from "../utils/rut";
+import PantallaAcceso from "../components/PantallaAcceso";
 import "./LoginPage.css";
 import "./registro.css";
 
@@ -254,8 +255,16 @@ export default function RegistroPage() {
   const ultimoPaso = paso === PASOS.length - 1;
 
   return (
-    <div className="login-screen">
-      <form className="login-card registro-card card" onSubmit={enviar} noValidate>
+        <PantallaAcceso
+      titulo="Registra tu empresa en VíaSegura"
+      descripcion="En 3 pasos tendrás una cuenta para pedir permisos de trabajo en la vía pública de Santiago Centro."
+      puntos={[
+        "Los datos de tu empresa, como aparecen en el SII",
+        "Quién es el representante legal",
+        "Tu cuenta de administrador",
+      ]}
+    >
+      <form className="registro-form card" onSubmit={enviar} noValidate>
         <h1>Registrar empresa</h1>
         <p className="subtitulo">Crea la cuenta de tu empresa en 3 pasos. Tú quedarás como administrador.</p>
 
@@ -400,7 +409,7 @@ export default function RegistroPage() {
             Inicia sesión
           </Link>
         </p>
-      </form>
-    </div>
+            </form>
+    </PantallaAcceso>
   );
 }
