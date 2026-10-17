@@ -1,13 +1,17 @@
-/* El registro va en la pantalla dividida, con el formulario más ancho que el del login. */
-.acceso-contenido:has(> .registro-form) {
-  max-width: 540px;
+/* El registro usa la misma pantalla de acceso, con la tarjeta más ancha que la del login. */
+.acceso-centro:has(.registro-form) {
+  max-width: 560px;
 }
 
-.registro-form {
-  padding: 28px 28px 24px;
-  border-radius: 14px;
-  box-shadow: var(--sombra-media);
+/* La tarjeta ya la pone la pantalla de acceso: el formulario no lleva otra encima. */
+.registro-form.card {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: none;
 }
+
 
 .registro-form h1 {
   margin: 0 0 4px;
@@ -141,8 +145,3 @@
   padding-right: 84px;
 }
 
-@media (max-width: 480px) {
-  .registro-form {
-    padding: 20px 16px;
-  }
-}
