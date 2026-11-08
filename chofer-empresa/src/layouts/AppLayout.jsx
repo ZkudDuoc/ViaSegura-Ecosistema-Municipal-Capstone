@@ -13,7 +13,8 @@ const NAV_LINKS = [
   { to: "/solicitud", label: "Crear solicitud", corto: "Crear", icono: "crear" },
   { to: "/camiones", label: "Camiones", icono: "camion" },
   { to: "/trabajadores", label: "Trabajadores", icono: "trabajadores" },
-];
+  { to: "/cumplimiento", label: "Cumplimiento", corto: "Panel", icono: "cumplimiento" },
+  ];
 
 export default function AppLayout() {
   const { usuario, logout } = useAuth();
@@ -22,7 +23,7 @@ export default function AppLayout() {
   return (
     <div className="app">
       <aside className="app-lateral">
-                <div className="app-brand">
+        <div className="app-brand">
           <Logo claro tamano={32} />
         </div>
         {empresa && <div className="app-empresa">{empresa}</div>}

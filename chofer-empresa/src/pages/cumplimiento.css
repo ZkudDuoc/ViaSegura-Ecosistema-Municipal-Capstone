@@ -1,0 +1,66 @@
+.cumplimiento-indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.cumplimiento-indicador {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cumplimiento-indicador-titulo {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.cumplimiento-indicador-valor {
+  font-size: 26px;
+  color: var(--color-navy);
+}
+
+.cumplimiento-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cumplimiento-lista li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cumplimiento-lista li:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.cumplimiento-lista .permiso-detalle {
+  display: block;
+}
+
+.cumplimiento-documentos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.cumplimiento-documento {
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .cumplimiento-indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

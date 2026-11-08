@@ -62,12 +62,13 @@ describe("Crear solicitud eligiendo trabajadores de la nómina", () => {
       </MemoryRouter>
     );
 
-    // 1. Camión y 2. ubicación
-    await usuario.selectOptions(await screen.findByLabelText("Camión"), "v1");
+        // 1. Comuna, 2. camión y 3. ubicación
+    await screen.findByRole("option", { name: "Santiago" });
+    await usuario.selectOptions(screen.getByLabelText("Comuna donde se hará el trabajo"), "c1");
+    await usuario.selectOptions(screen.getByLabelText("Camión"), "v1");
     await usuario.click(screen.getByRole("button", { name: "Fijar ubicación de prueba" }));
 
-    // 3. Datos del servicio (el RUT viene prellenado con el de la empresa)
-    await usuario.selectOptions(screen.getByLabelText("Comuna"), "c1");
+        // 4. Datos del servicio (el RUT viene prellenado con el de la empresa)
     expect(screen.getByLabelText("RUT de la empresa responsable")).toHaveValue("76123456-0");
     fireEvent.change(screen.getByLabelText("Inicio"), { target: { value: "2099-03-10T09:00" } });
     fireEvent.change(screen.getByLabelText("Fin"), { target: { value: "2099-03-10T13:00" } });

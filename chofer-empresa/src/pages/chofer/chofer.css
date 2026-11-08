@@ -269,8 +269,73 @@
   color: var(--color-navy);
 }
 
-.mini-servicio > div {
+.mini-servicio>div {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/* Riesgo del sector: visible sin abrir los datos del servicio. */
+.riesgo-sector {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.riesgo-sector-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.riesgo-sector-puntaje {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.riesgo-sector-aviso {
+  margin: 0;
+  font-weight: 600;
+}
+
+.riesgo-sector-explicacion {
+  margin: 0;
+  font-size: 13px;
+}
+
+.riesgo-sector.riesgo-bajo {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.riesgo-sector.riesgo-medio {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.riesgo-sector.riesgo-alto {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Tiempo que le queda al QR antes de cambiar. */
+.qr-barra {
+  width: 100%;
+  max-width: 300px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.qr-barra-avance {
+  height: 100%;
+  background: var(--color-primary);
+  transition: width 1s linear;
 } 

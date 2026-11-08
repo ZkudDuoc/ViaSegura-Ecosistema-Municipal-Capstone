@@ -20,10 +20,16 @@ export function obtenerServicio(permisoId, token) {
 export function obtenerQrServicio(permisoId, token) {
   return choferApi.get(`/permisos/${permisoId}/qr-token`, conToken(token)).then((res) => res.data);
 }
+// { secreto, periodo, digitos, algoritmo, servidor_ahora } para generar el QR sin conexión.
+export function obtenerQrSecreto(permisoId, token) {
+  return choferApi.get(`/permisos/${permisoId}/qr-secreto`, conToken(token)).then((res) => res.data);
+}
 
-export function iniciarServicio(permisoId, token, foto) {
+
+export function iniciarServicio(permisoId, token, foto, posicion) {
+  const ubicacion = posicion ? { lat: posicion.lat, lng: posicion.lng } : undefined;
   return choferApi
-    .patch(`/permisos/${permisoId}/activar`, { foto_evidencia_url: foto }, conToken(token))
+    .patch(`/permisos/${permisoId}/activar`, { foto_evidencia_url: foto, ubicacion }, conToken(token))
     .then((res) => res.data);
 }
 

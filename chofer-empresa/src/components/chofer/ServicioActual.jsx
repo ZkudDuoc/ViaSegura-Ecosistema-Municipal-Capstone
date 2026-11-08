@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { QRCodeSVG } from "qrcode.react";
 import AreaMapa from "../AreaMapa";
+import QrDinamico from "./QrDinamico";
+import { leerQr } from "../../utils/choferOffline";
 import { obtenerQrServicio, finalizarServicio, mensajeError } from "../../services/choferApi";
 import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../../utils/formato";
 
@@ -22,11 +24,40 @@ function duracion(desde, hasta) {
   const horas = Math.floor(minutos / 60);
   return minutos % 60 ? `${horas} h ${minutos % 60} min` : `${horas} h`;
 }
+const RIESGO = {
+  Bajo: { clase: "riesgo-bajo", aviso: null },
+  Medio: { clase: "riesgo-medio", aviso: "Mantente atento a tu entorno durante el trabajo." },
+  Alto: { clase: "riesgo-alto", aviso: "Zona de riesgo alto: mantente atento y ten a mano el botón de pánico." },
+};
+
+function RiesgoSector({ riesgo }) {
+  if (!riesgo) {
+    return (
+      <div className="riesgo-sector">
+        <strong>Riesgo del sector: sin evaluar</strong>
+      </div>
+    );
+  }
+
+  const { clase, aviso } = RIESGO[riesgo.nivel] ?? { clase: "", aviso: null };
+
+  return (
+    <div className={`riesgo-sector ${clase}`}>
+      <div className="riesgo-sector-fila">
+        <strong>Riesgo del sector: {riesgo.nivel}</strong>
+        <span className="riesgo-sector-puntaje">{Math.round(Number(riesgo.score))} / 100</span>
+      </div>
+      {aviso && <p className="riesgo-sector-aviso">{aviso}</p>}
+      {riesgo.explicacion && <p className="riesgo-sector-explicacion">{riesgo.explicacion}</p>}
+    </div>
+  );
+}
 
 export default function ServicioActual({ servicio, token, onActualizado }) {
   const [abierto, setAbierto] = useState(false);
   const [mostrarQr, setMostrarQr] = useState(false);
   const [qr, setQr] = useState(null);
+  const [qrDinamico, setQrDinamico] = useState(null);
   const [errorQr, setErrorQr] = useState(null);
   const [finalizando, setFinalizando] = useState(false);
   const [mensaje, setMensaje] = useState(null);
@@ -37,6 +68,11 @@ export default function ServicioActual({ servicio, token, onActualizado }) {
   const abrirQr = async () => {
     setAbierto(true);
     setMostrarQr(true);
+    const config = leerQr(servicio.id);
+    if (config) {
+      setQrDinamico(config);
+      return;
+    }
     if (qr) return;
     setErrorQr(null);
     try {
@@ -90,12 +126,20 @@ export default function ServicioActual({ servicio, token, onActualizado }) {
         <span className="servicio-toque">{abierto ? "Ocultar datos" : "Toca para ver los datos del servicio"}</span>
       </button>
 
+      {!mostrarQr && <RiesgoSector riesgo={servicio.riesgo} />}
+
       {abierto &&
         (mostrarQr ? (
           <div className="servicio-qr">
-            {qr && <QRCodeSVG value={qr} size={280} level="M" marginSize={2} />}
-            {!qr && !errorQr && <p className="subtitulo">Generando QR…</p>}
-            {errorQr && <p className="texto-error">{errorQr}</p>}
+            {qrDinamico ? (
+              <QrDinamico permisoId={servicio.id} config={qrDinamico} />
+            ) : (
+              <>
+                {qr && <QRCodeSVG value={qr} size={280} level="M" marginSize={2} />}
+                {!qr && !errorQr && <p className="subtitulo">Generando QR…</p>}
+                {errorQr && <p className="texto-error">{errorQr}</p>}
+              </>
+            )}
             <p className="qr-codigo-corto">Servicio {codigo}</p>
             <p className="permiso-detalle">Muéstralo al supervisor municipal.</p>
           </div>
