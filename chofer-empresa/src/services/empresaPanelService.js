@@ -26,3 +26,9 @@ export function listarMultasDeSolicitud(permisoId) {
 export function obtenerEstadisticasEmpresa(params = {}) {
   return api.get("/empresa/estadisticas", { params }).then((res) => res.data);
 }
+
+// Panel de cumplimiento: trabajadores con documentos vencidos o por vencer, multas,
+// solicitudes aprobadas y tiempo promedio de aprobación.
+export function obtenerCumplimientoEmpresa() {
+  return api.get("/empresa/cumplimiento").then((res) => res.data);
+}

@@ -5,11 +5,12 @@ import AppLayout from "./layouts/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RegistroPage from "./pages/RegistroPage";
 import InicioPage from "./pages/InicioPage";
-import SolicitudesPage from "./pages/SolicitudesPage";  
+import SolicitudesPage from "./pages/SolicitudesPage";
 import SolicitudPage from "./pages/SolicitudPage";
 import DetallePage from "./pages/DetallePage";
 import CamionesPage from "./pages/CamionesPage";
 import TrabajadoresPage from "./pages/TrabajadoresPage";
+import CumplimientoPage from "./pages/CumplimientoPage";
 import PerfilPage from "./pages/PerfilPage";
 import ChoferCodigoPage from "./pages/chofer/ChoferCodigoPage";
 import ChoferInicioPage from "./pages/chofer/ChoferInicioPage";
@@ -50,7 +51,8 @@ export default function App() {
             <Route path="/solicitud" element={<SolicitudPage />} />
             <Route path="/camiones" element={<CamionesPage />} />
             <Route path="/trabajadores" element={<TrabajadoresPage />} />
-<Route path="/perfil" element={<PerfilPage />} />
+            <Route path="/cumplimiento" element={<CumplimientoPage />} />
+            <Route path="/perfil" element={<PerfilPage />} />
             <Route path="/solicitudes/:id" element={<DetallePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

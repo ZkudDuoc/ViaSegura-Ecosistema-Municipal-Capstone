@@ -62,6 +62,7 @@ export default function SolicitudPage() {
   }, []);
 
   const vehiculo = vehiculos?.find((v) => v.id === vehiculoId) ?? null;
+  const comuna = comunas.find((c) => c.id === comunaId) ?? null;
   const otrosVehiculos = (vehiculos ?? []).filter((v) => v.id !== vehiculoId);
 
   const ventanaInvalida = ventanaInicio && ventanaFin && new Date(ventanaFin) <= new Date(ventanaInicio);
@@ -87,6 +88,12 @@ export default function SolicitudPage() {
     setAdicionalesIds((ids) => ids.filter((id) => id !== nuevoId));
     // Sin camión el mapa se oculta: no dejar un área calculada con medidas de otro camión.
     if (!nuevoId) setAreaCalculada(null);
+  };
+
+  // El área ya calculada pertenece a la comuna anterior.
+  const handleComuna = (e) => {
+    setComunaId(e.target.value);
+    setAreaCalculada(null);
   };
 
   const alternarAdicional = (id) =>
@@ -186,10 +193,26 @@ export default function SolicitudPage() {
   return (
     <form className="solicitud-form" onSubmit={handleSubmit}>
       <h1>Nueva solicitud</h1>
-      <p className="subtitulo">Completa las 5 secciones. El área de trabajo se calcula sola.</p>
+      <p className="subtitulo">Completa las 6 secciones. El área de trabajo se calcula sola.</p>
 
       <section className="card paso">
-        <TituloPaso numero={1}>Camión principal</TituloPaso>
+        <TituloPaso numero={1}>Municipalidad</TituloPaso>
+        <div className="campo">
+          <label htmlFor="comuna">Comuna donde se hará el trabajo</label>
+          <select id="comuna" value={comunaId} onChange={handleComuna} required>
+            <option value="">Selecciona una comuna</option>
+            {comunas.map((c) => (
+              <option key={c.id} value={c.id} disabled={c.habilitada === false}>
+                {c.nombre}
+                {c.habilitada === false ? " (próximamente)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
+
+      <section className="card paso">
+        <TituloPaso numero={2}>Camión principal</TituloPaso>
         <div className="campo">
           <label htmlFor="vehiculo">Camión</label>
           <select id="vehiculo" value={vehiculoId} onChange={handleVehiculo} required>
@@ -204,11 +227,11 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <TituloPaso numero={2}>Ubicación del trabajo</TituloPaso>
-        {vehiculo ? (
-          <UbicacionPicker vehiculo={vehiculo} onChange={setAreaCalculada} />
+        <TituloPaso numero={3}>Ubicación del trabajo</TituloPaso>
+        {vehiculo && comuna ? (
+          <UbicacionPicker key={comuna.id} vehiculo={vehiculo} limite={comuna.limite ?? null} onChange={setAreaCalculada} />
         ) : (
-          <p className="permiso-detalle">Elige primero el camión principal.</p>
+          <p className="permiso-detalle">Elige primero la comuna y el camión principal.</p>
         )}
         {vehiculo && areaCalculada && (
           <p className="permiso-detalle">
@@ -219,19 +242,7 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <TituloPaso numero={3}>Datos del servicio</TituloPaso>
-
-        <div className="campo">
-          <label htmlFor="comuna">Comuna</label>
-          <select id="comuna" value={comunaId} onChange={(e) => setComunaId(e.target.value)} required>
-            <option value="">Selecciona una comuna</option>
-            {comunas.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-        </div>
+                <TituloPaso numero={4}>Datos del servicio</TituloPaso>
 
         <div className="campo">
           <label>Tipo de actividad</label>
@@ -283,7 +294,7 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <TituloPaso numero={4}>Personal que va a terreno</TituloPaso>
+        <TituloPaso numero={5}>Personal que va a terreno</TituloPaso>
         <p className="permiso-detalle">
           Marca a las personas de tu nómina que irán al trabajo, incluido el chofer.{" "}
           <Link to="/trabajadores" className="enlace">
@@ -294,7 +305,7 @@ export default function SolicitudPage() {
       </section>
 
       <section className="card paso">
-        <TituloPaso numero={5}>Maquinaria adicional (opcional)</TituloPaso>
+        <TituloPaso numero={6}>Maquinaria adicional (opcional)</TituloPaso>
         {otrosVehiculos.length === 0 ? (
           <p className="permiso-detalle">
             No tienes otros camiones registrados.{" "}

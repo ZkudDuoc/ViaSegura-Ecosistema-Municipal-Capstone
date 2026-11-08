@@ -4,8 +4,12 @@ import { useChofer } from "../../context/ChoferContext";
 import { obtenerServicio, iniciarServicio, mensajeError } from "../../services/choferApi";
 import { obtenerPosicion, estaEnArea } from "../../utils/geo";
 import { comprimirFoto } from "../../utils/foto";
+import Logo from "../../components/Logo";
 import "../paginas.css";
 import "./chofer.css";
+
+// En producción siempre se valida; solo se apaga con VITE_VALIDAR_UBICACION=false (demo).
+const VALIDAR_UBICACION = import.meta.env.VITE_VALIDAR_UBICACION !== "false";
 
 // Iniciar el trabajo: el GPS verifica que el chofer esté en el área y se
 // envía la foto de evidencia de la faena. Solo desde el servicio actual.
@@ -17,6 +21,7 @@ export default function ChoferEvidenciaPage() {
 
   const [servicio, setServicio] = useState(null);
   const [verificacion, setVerificacion] = useState(null);
+  const [posicion, setPosicion] = useState(null);
   const [ubicando, setUbicando] = useState(false);
   const [foto, setFoto] = useState(null);
   const [enviando, setEnviando] = useState(false);
@@ -44,8 +49,9 @@ export default function ChoferEvidenciaPage() {
     setError(null);
     setUbicando(true);
     try {
-      const posicion = await obtenerPosicion();
-      setVerificacion(estaEnArea(posicion, servicio.area));
+      const actual = await obtenerPosicion();
+      setPosicion(actual);
+      setVerificacion(estaEnArea(actual, servicio.area));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -68,7 +74,7 @@ export default function ChoferEvidenciaPage() {
     setError(null);
     setEnviando(true);
     try {
-      await iniciarServicio(id, token, foto);
+      await iniciarServicio(id, token, foto, posicion);
       navigate("/chofer/servicios", { replace: true });
     } catch (err) {
       setError(mensajeError(err));
@@ -78,53 +84,62 @@ export default function ChoferEvidenciaPage() {
   };
 
   return (
-    <div className="chofer-contenido">
-      <Link to="/chofer/servicios" className="enlace">
-        ← Mis servicios
-      </Link>
-      <h1>Iniciar trabajo</h1>
-      <p className="subtitulo">Verifica que estás en el lugar y toma una foto de la faena.</p>
+    <div className="chofer-app">
+      <header className="chofer-header">
+        <Logo claro tamano={28} />
+        <Link to="/chofer/servicios" className="btn-link">
+          ← Mis servicios
+        </Link>
+      </header>
 
-      {!servicio && !error && <p className="subtitulo">Cargando…</p>}
+      <main className="chofer-contenido">
+        <h1>Iniciar trabajo</h1>
+        <p className="subtitulo">Verifica que estás en el lugar y toma una foto de la faena.</p>
 
-      {servicio && (
-        <>
-          <section className="card paso">
-            <h2 className="paso-titulo">1. Ubicación</h2>
-            {verificacion &&
-              (verificacion.dentro ? (
-                <p className="texto-exito">Estás dentro del área de trabajo</p>
-              ) : (
-                <p className="texto-error">
-                  Estás a {Math.round(verificacion.distanciaM)} m del área. Acércate e intenta de nuevo.
-                </p>
-              ))}
-            <button type="button" className="btn-secondary" onClick={verificar} disabled={ubicando}>
-              {ubicando ? "Obteniendo ubicación…" : verificacion ? "Verificar de nuevo" : "Verificar mi ubicación"}
+        {!servicio && !error && <p className="subtitulo">Cargando…</p>}
+
+        {servicio && (
+          <>
+            <section className="card paso">
+              <h2 className="paso-titulo">1. Ubicación</h2>
+              {!VALIDAR_UBICACION && (
+                <p className="permiso-detalle">Validación de ubicación desactivada para la demostración.</p>
+              )}
+              {verificacion &&
+                (verificacion.dentro ? (
+                  <p className="texto-exito">Estás dentro del área de trabajo</p>
+                ) : (
+                  <p className="texto-error">
+                    Estás a {Math.round(verificacion.distanciaM)} m del área. Acércate e intenta de nuevo.
+                  </p>
+                ))}
+              <button type="button" className="btn-secondary" onClick={verificar} disabled={ubicando}>
+                {ubicando ? "Obteniendo ubicación…" : verificacion ? "Verificar de nuevo" : "Verificar mi ubicación"}
+              </button>
+            </section>
+
+            <section className="card paso">
+              <h2 className="paso-titulo">2. Foto de evidencia</h2>
+              {foto && <img src={foto} alt="Foto de evidencia" className="foto-preview" />}
+              <label className="btn-secondary btn-archivo">
+                {foto ? "Tomar otra foto" : "Abrir cámara"}
+                <input type="file" accept="image/*" capture="environment" onChange={tomarFoto} hidden />
+              </label>
+            </section>
+
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={confirmar}
+              disabled={(VALIDAR_UBICACION && !verificacion?.dentro) || !foto || enviando}
+            >
+              {enviando ? "Enviando…" : "Iniciar trabajo"}
             </button>
-          </section>
+          </>
+        )}
 
-          <section className="card paso">
-            <h2 className="paso-titulo">2. Foto de evidencia</h2>
-            {foto && <img src={foto} alt="Foto de evidencia" className="foto-preview" />}
-            <label className="btn-secondary btn-archivo">
-              {foto ? "Tomar otra foto" : "Abrir cámara"}
-              <input type="file" accept="image/*" capture="environment" onChange={tomarFoto} hidden />
-            </label>
-          </section>
-
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={confirmar}
-            disabled={!verificacion?.dentro || !foto || enviando}
-          >
-            {enviando ? "Enviando…" : "Iniciar trabajo"}
-          </button>
-        </>
-      )}
-
-      {error && <p className="texto-error">{error}</p>}
+        {error && <p className="texto-error">{error}</p>}
+      </main>
     </div>
   );
 }

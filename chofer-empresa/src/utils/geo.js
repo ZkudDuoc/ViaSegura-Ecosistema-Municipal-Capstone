@@ -106,3 +106,29 @@ export function estaEnArea(posicion, area) {
   const distanciaM = distanciaMetros(posicion, centroide(anillo));
   return { dentro: distanciaM <= TOLERANCIA_LLEGADA_M, distanciaM };
 }
+
+// Sin límite cargado no se restringe (comuna sin contorno todavía).
+export function puntoEnLimite(posicion, limite) {
+  if (!limite) return true;
+  const poligonos = limite.type === "MultiPolygon" ? limite.coordinates : [limite.coordinates];
+  return poligonos.some(
+    ([exterior, ...huecos]) =>
+      puntoEnPoligono(posicion, exterior) && !huecos.some((hueco) => puntoEnPoligono(posicion, hueco))
+  );
+}
+
+// El área completa debe quedar dentro: el Backend valida el polígono, no solo el pin.
+export function areaEnLimite(area, limite) {
+  return area.every(([lng, lat]) => puntoEnLimite({ lat, lng }, limite));
+}
+
+// Caja [[oeste, sur], [este, norte]] para encuadrar el mapa en la comuna.
+export function cajaDeLimite(limite) {
+  const pares = limite.coordinates.flat(limite.type === "MultiPolygon" ? 2 : 1);
+  const lngs = pares.map(([lng]) => lng);
+  const lats = pares.map(([, lat]) => lat);
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ];
+}

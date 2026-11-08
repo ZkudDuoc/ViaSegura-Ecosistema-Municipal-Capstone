@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { canjearCodigo } from "../services/choferApi";
+import { descargarQr, olvidarServicio, olvidarTodo } from "../utils/choferOffline";
 
 const ChoferContext = createContext(null);
 
@@ -44,15 +45,21 @@ export function ChoferProvider({ children }) {
   const agregarCodigo = useCallback(async (codigo) => {
     const limpio = codigo.trim().toLowerCase().replace(/\s/g, "");
     const { token, permiso_id: permisoId } = await canjearCodigo(limpio);
+    // Se descarga apenas entra: después puede quedarse sin señal.
+    await descargarQr(permisoId, token).catch(() => { });
     setSesiones((previas) => [...previas.filter((s) => s.permisoId !== permisoId), { permisoId, token }]);
     return permisoId;
   }, []);
 
   const quitarServicio = useCallback((permisoId) => {
+    olvidarServicio(permisoId);
     setSesiones((previas) => previas.filter((s) => s.permisoId !== permisoId));
   }, []);
 
-  const salir = useCallback(() => setSesiones([]), []);
+  const salir = useCallback(() => {
+    olvidarTodo();
+    setSesiones([]);
+  }, []);
 
   const tokenDe = useCallback((permisoId) => sesiones.find((s) => s.permisoId === permisoId)?.token ?? null, [sesiones]);
 

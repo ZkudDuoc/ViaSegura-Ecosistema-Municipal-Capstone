@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { calcularAreaTrabajo } from "../utils/geo";
+import { calcularAreaTrabajo, puntoEnLimite, areaEnLimite, cajaDeLimite } from "../utils/geo";
 import { buscarDirecciones, direccionDePunto, acortarDireccion } from "../services/geocodingService";
 import "./UbicacionPicker.css";
 
@@ -25,12 +25,29 @@ const VACIO = { type: "FeatureCollection", features: [] };
 // Espera tras la última tecla antes de buscar (Nominatim permite 1 request/s).
 const ESPERA_BUSQUEDA_MS = 600;
 const MIN_CARACTERES = 4;
+const MENSAJE_FUERA = "Ese punto está fuera de la comuna seleccionada.";
+// Margen para mover el mapa un poco más allá del borde de la comuna.
+const MARGEN_MAPA_GRADOS = 0.02;
+
+function vistaInicial(limite) {
+  if (!limite) return { center: SANTIAGO_CENTER, zoom: 12 };
+  const caja = cajaDeLimite(limite);
+  const [[oeste, sur], [este, norte]] = caja;
+  return {
+    bounds: caja,
+    fitBoundsOptions: { padding: 24 },
+    maxBounds: [
+      [oeste - MARGEN_MAPA_GRADOS, sur - MARGEN_MAPA_GRADOS],
+      [este + MARGEN_MAPA_GRADOS, norte + MARGEN_MAPA_GRADOS],
+    ],
+  };
+}
 
 // Ubicación del camión para una solicitud: la empresa escribe la dirección
 // (con autocompletado) y puede corregir arrastrando el pin o tocando el mapa.
 // El área se calcula sola con las medidas del camión + conos.
 // `onChange` debe ser estable (ej. el setState del padre).
-export default function UbicacionPicker({ vehiculo, onChange }) {
+export default function UbicacionPicker({ vehiculo, limite = null, onChange }) {
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
@@ -43,6 +60,19 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
   const [sugerencias, setSugerencias] = useState([]);
   const [buscando, setBuscando] = useState(false);
   const [error, setError] = useState(null);
+  const [areaFuera, setAreaFuera] = useState(false);
+  const puntoRef = useRef(null);
+
+  // Rechaza puntos fuera de la comuna; el pin vuelve a su última posición válida.
+  const aceptarPunto = (posicion) => {
+    if (puntoEnLimite(posicion, limite)) {
+      setError(null);
+      return true;
+    }
+    setError(MENSAJE_FUERA);
+    if (puntoRef.current) markerRef.current?.setLngLat([puntoRef.current.lng, puntoRef.current.lat]);
+    return false;
+  };
 
   // Mueve el camión a un punto del mapa y rellena el campo con su dirección.
   const moverDesdeMapa = async ({ lat, lng }) => {
@@ -57,8 +87,7 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: OSM_STYLE,
-      center: SANTIAGO_CENTER,
-      zoom: 12,
+      ...vistaInicial(limite),
     });
     mapRef.current = map;
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
@@ -77,11 +106,22 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
         source: "area-trabajo",
         paint: { "line-color": "#0842b0", "line-width": 2 },
       });
+      if (limite) {
+        map.addSource("limite-comuna", { type: "geojson", data: { type: "Feature", geometry: limite, properties: {} } });
+        map.addLayer({
+          id: "limite-comuna-borde",
+          type: "line",
+          source: "limite-comuna",
+          paint: { "line-color": "#0b2a5b", "line-width": 2, "line-dasharray": [2, 2] },
+        });
+      }
       setMapaListo(true);
     });
 
     map.on("click", (e) => {
-      moverDesdeMapa({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      const posicion = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+      if (!aceptarPunto(posicion)) return;
+      moverDesdeMapa(posicion);
       if (map.getZoom() < 16) map.easeTo({ center: e.lngLat, zoom: ZOOM_DETALLE });
     });
 
@@ -106,8 +146,10 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
       setError(null);
       try {
         const resultados = await buscarDirecciones(texto, { signal: controlador.signal });
-        setSugerencias(resultados);
+        const dentro = resultados.filter((r) => puntoEnLimite(r, limite));
+        setSugerencias(dentro);
         if (resultados.length === 0) setError("No encontramos esa dirección. Prueba agregando la comuna.");
+        else if (dentro.length === 0) setError(MENSAJE_FUERA);
       } catch (err) {
         if (err.name !== "AbortError") setError(err.message);
       } finally {
@@ -125,7 +167,10 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
   useEffect(() => {
     if (!punto) return;
     const resultado = calcularAreaTrabajo({ ...punto, rumbo }, vehiculo);
-    onChange({ posicion: punto, direccion: consulta, ...resultado });
+    puntoRef.current = punto;
+    const dentro = areaEnLimite(resultado.area, limite);
+    setAreaFuera(!dentro);
+    onChange(dentro ? { posicion: punto, direccion: consulta, ...resultado } : null);
 
     const map = mapRef.current;
     if (!map || !mapaListo) return;
@@ -141,6 +186,7 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
       markerRef.current = new maplibregl.Marker({ color: "#0b5fff", draggable: true });
       markerRef.current.on("dragend", () => {
         const { lat, lng } = markerRef.current.getLngLat();
+        if (!aceptarPunto({ lat, lng })) return;
         moverDesdeMapa({ lat, lng });
       });
     }
@@ -178,7 +224,7 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
             setBuscarActivo(true);
           }}
           onKeyDown={handleTeclado}
-          placeholder="Escribe la dirección, ej: Av. Providencia 1234, Providencia"
+          placeholder="Escribe la dirección, ej: Agustinas 1234, Santiago"
           aria-label="Dirección del trabajo"
           autoComplete="off"
         />
@@ -220,6 +266,9 @@ export default function UbicacionPicker({ vehiculo, onChange }) {
         </div>
       )}
 
+      {areaFuera && (
+        <p className="texto-error">El área del camión se sale de la comuna. Acerca el pin al interior o cambia la orientación.</p>
+      )}
       {error && <p className="texto-error">{error}</p>}
 
       <p className="ubicacion-atribucion">Búsqueda de direcciones: © OpenStreetMap</p>

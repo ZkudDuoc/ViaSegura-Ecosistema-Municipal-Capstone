@@ -34,6 +34,12 @@ const TRAZOS = {
       <path d="M16 14.2c2.8.2 5 2.6 5 5.8" />
     </>
   ),
+  cumplimiento: (
+    <>
+      <path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3z" />
+      <path d="M9 12l2 2 4-4" />
+    </>
+  ),
   alerta: (
     <>
       <path d="M12 3 2 20h20L12 3z" />

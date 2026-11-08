@@ -2,8 +2,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useChofer } from "../../context/ChoferContext";
 import { obtenerServicio } from "../../services/choferApi";
+import { descargarQr, guardarServicio, leerQr, leerServicio } from "../../utils/choferOffline";
 import ServicioActual from "../../components/chofer/ServicioActual";
 import BotonPanico from "../../components/chofer/BotonPanico";
+import Logo from "../../components/Logo";
+import { ListaCargando } from "../../components/EstadoLista";
 import { ESTADO_LABEL, ESTADO_CLASE, formatearFecha } from "../../utils/formato";
 import "../paginas.css";
 import "../detalle.css";
@@ -57,12 +60,14 @@ export default function ChoferInicioPage() {
   const [servicios, setServicios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [aviso, setAviso] = useState(null);
+  const [sinSenal, setSinSenal] = useState(false);
   const [pestana, setPestana] = useState("PENDIENTES");
   const estadosPrevios = useRef({});
 
   const cargar = useCallback(async () => {
     const resultados = await Promise.allSettled(sesiones.map((s) => obtenerServicio(s.permisoId, s.token)));
     const cargados = [];
+    let sinRespuesta = false;
     resultados.forEach((resultado, i) => {
       const { permisoId } = sesiones[i];
       if (resultado.status === "fulfilled") {
@@ -71,11 +76,19 @@ export default function ChoferInicioPage() {
         if (anterior && anterior !== servicio.estado && AVISOS[servicio.estado]) setAviso(AVISOS[servicio.estado]);
         estadosPrevios.current[permisoId] = servicio.estado;
         cargados.push(servicio);
+        guardarServicio(servicio);
+        if (!leerQr(permisoId)) descargarQr(permisoId, sesiones[i].token).catch(() => { });
       } else if (resultado.reason?.response?.status === 401) {
         // El código venció (12 h): se quita de la lista.
         quitarServicio(permisoId);
+      } else if (!resultado.reason?.response) {
+        // Sin señal: se muestra lo último guardado para no perder el QR.
+        sinRespuesta = true;
+        const guardado = leerServicio(permisoId);
+        if (guardado) cargados.push(guardado);
       }
     });
+    setSinSenal(sinRespuesta);
     setServicios(cargados);
     setCargando(false);
   }, [sesiones, quitarServicio]);
@@ -98,7 +111,7 @@ export default function ChoferInicioPage() {
   return (
     <div className="chofer-app">
       <header className="chofer-header">
-        <strong className="app-brand">VíaSegura</strong>
+        <Logo claro tamano={28} />
         <div className="chofer-header-acciones">
           <Link to="/chofer" className="btn-link">
             Agregar código
@@ -121,7 +134,12 @@ export default function ChoferInicioPage() {
 
         <section className="chofer-mitad">
           <h1>Servicio actual</h1>
-          {cargando && <p className="subtitulo">Cargando…</p>}
+          {sinSenal && (
+            <div className="chofer-aviso error" role="status">
+              <span>Sin conexión: estás viendo los últimos datos guardados. Tu QR sigue funcionando.</span>
+            </div>
+          )}
+          {cargando && <ListaCargando filas={1} etiqueta="Cargando tu servicio" />}
           {!cargando && actual && (
             <ServicioActual servicio={actual} token={tokenDe(actual.id)} onActualizado={cargar} />
           )}
@@ -137,7 +155,7 @@ export default function ChoferInicioPage() {
         </section>
 
         <section className="chofer-mitad">
-          <div className="bandeja-tabs" role="tablist">
+          <div className="chips bandeja-tabs" role="tablist">
             <button
               type="button"
               role="tab"

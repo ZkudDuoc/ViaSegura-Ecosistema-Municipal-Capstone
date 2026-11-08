@@ -1,82 +1,80 @@
-/* Pantalla de acceso dividida */
+/* Pantalla de acceso: fondo azul marino con una tarjeta blanca al centro. */
 .acceso {
+  position: relative;
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: minmax(320px, 44%) 1fr;
-  background: var(--color-surface, #fff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow: hidden;
+  background: var(--color-navy, #0b2a5b);
+}
+
+/* Detalle sutil: dos círculos de luz azul en las esquinas. */
+.acceso::before,
+.acceso::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.acceso::before {
+  top: -180px;
+  left: -160px;
+  width: 460px;
+  height: 460px;
+  background: radial-gradient(circle, rgba(31, 111, 209, 0.35), transparent 70%);
+}
+
+.acceso::after {
+  right: -200px;
+  bottom: -200px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgba(31, 111, 209, 0.3), transparent 70%);
+}
+
+.acceso-centro {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
 
 .acceso-marca {
-  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 32px;
-  padding: 40px 48px;
-  background: var(--color-navy, #0b2a5b);
-  color: #fff;
-  overflow: hidden;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
 }
 
-/* Detalle sutil: un círculo de luz en la esquina. */
-.acceso-marca::after {
-  content: "";
-  position: absolute;
-  right: -120px;
-  bottom: -120px;
-  width: 320px;
-  height: 320px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(31, 111, 209, 0.45), transparent 70%);
-  pointer-events: none;
-  z-index: 0;
+.acceso-marca .logo-texto {
+  font-size: 26px;
 }
 
-/* El contenido va por encima del círculo de luz. */
-.acceso-marca > * {
-  position: relative;
-  z-index: 1;
-}
-
-.acceso-mensaje {
-  position: relative;
-  max-width: 440px;
-}
-
-.acceso-titulo {
-  margin: 0 0 12px;
-  font-size: 30px;
-  line-height: 1.2;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: #fff;
-}
-
-.acceso-descripcion {
-  margin: 0 0 24px;
-  font-size: 16px;
+.acceso-lema {
+  margin: 0;
+  max-width: 340px;
+  font-size: 14px;
   color: #c9d6ec;
 }
 
-.acceso-puntos {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.acceso-puntos li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  color: #e6edf8;
+/* La tarjeta blanca con el formulario. */
+.acceso-contenido {
+  width: 100%;
+  padding: 28px 28px 24px;
+  border-radius: 16px;
+  background: var(--color-surface, #fff);
+  box-shadow: 0 24px 60px rgba(3, 12, 30, 0.45);
 }
 
 .acceso-pie {
-  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -85,23 +83,10 @@
 }
 
 .acceso-barra {
-  width: 40px;
+  width: 28px;
   height: 4px;
   border-radius: 2px;
   background: var(--color-acento, #f5b700);
-}
-
-.acceso-panel {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px 24px;
-  background: var(--color-bg, #f4f6fa);
-}
-
-.acceso-contenido {
-  width: 100%;
-  max-width: 400px;
 }
 
 /* Formulario dentro de la pantalla de acceso */
@@ -259,35 +244,18 @@
   font-weight: 600;
 }
 
-/* Celular y tablet: la marca pasa a una franja arriba, solo con logo y título. */
-@media (max-width: 860px) {
+/* Celular: la tarjeta ocupa casi todo el ancho y queda más arriba. */
+@media (max-width: 480px) {
   .acceso {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
-  }
-
-  .acceso-marca {
-    gap: 14px;
-    padding: 24px 20px 28px;
-  }
-
-  .acceso-marca::after {
-    display: none;
-  }
-
-  .acceso-titulo {
-    font-size: 20px;
-    margin: 0;
-  }
-
-  .acceso-descripcion,
-  .acceso-puntos,
-  .acceso-pie {
-    display: none;
-  }
-
-  .acceso-panel {
     align-items: flex-start;
-    padding: 28px 20px 40px;
+    padding: 28px 12px;
+  }
+
+  .acceso-marca .logo-texto {
+    font-size: 22px;
+  }
+
+  .acceso-contenido {
+    padding: 22px 18px 20px;
   }
 }
