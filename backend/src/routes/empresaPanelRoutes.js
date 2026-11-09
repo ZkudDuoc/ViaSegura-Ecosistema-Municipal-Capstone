@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
-const { solicitudes, multasDeSolicitud, resumen, estadisticas } = require('../controllers/empresaPanelController');
+const { solicitudes, multasDeSolicitud, resumen, estadisticas, cumplimiento } = require('../controllers/empresaPanelController');
 
 const router = Router();
 
@@ -8,6 +8,7 @@ const router = Router();
 const empresa = [requireAuth, requireRole('CHOFER', 'LOGISTICA')];
 
 router.get('/resumen', ...empresa, resumen);
+router.get('/cumplimiento', ...empresa, cumplimiento);
 router.get('/estadisticas', ...empresa, estadisticas);
 router.get('/solicitudes', ...empresa, solicitudes);
 router.get('/solicitudes/:id/multas', ...empresa, multasDeSolicitud);

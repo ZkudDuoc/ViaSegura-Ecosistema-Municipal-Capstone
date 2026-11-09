@@ -109,7 +109,7 @@ describe('permisoController.rechazar', () => {
 describe('permisoController.finalizar', () => {
   test('409 si el permiso no es del chofer o no está en un estado finalizable', async () => {
     pool.query.mockResolvedValue({ rows: [] });
-    const req = { params: { id: 'p1' }, usuario: { sub: 'chofer-1' } };
+    const req = { params: { id: 'p1' }, usuario: { sub: 'chofer-1', rol: 'CHOFER' } };
     const res = mockRes();
 
     await finalizar(req, res);
@@ -119,7 +119,7 @@ describe('permisoController.finalizar', () => {
 
   test('200 finaliza y registra en bitácora', async () => {
     pool.query.mockResolvedValue({ rows: [{ id: 'p1', estado: 'FINALIZADO', comuna_id: 'comuna-1' }] });
-    const req = { params: { id: 'p1' }, usuario: { sub: 'chofer-1' } };
+    const req = { params: { id: 'p1' }, usuario: { sub: 'chofer-1', rol: 'CHOFER' } };
     const res = mockRes();
 
     await finalizar(req, res);

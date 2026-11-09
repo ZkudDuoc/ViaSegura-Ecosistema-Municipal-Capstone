@@ -52,13 +52,30 @@ async function crearUsuarioMunicipal({ rol, nombre, rut, email, password, comuna
   return { ...rows[0], comuna: comunaRows[0].nombre };
 }
 
+function describirError(err) {
+  if (err.code === '23505') return 'ya existe un usuario con ese email o RUT';
+  // Un fallo de conexión llega como AggregateError con el mensaje vacío.
+  const codigos = (err.errors ?? []).map((e) => e.code).filter(Boolean);
+  const codigo = err.code ?? codigos[0];
+  if (codigo === 'ECONNREFUSED') {
+    return 'no se pudo conectar a la base de datos. Revisa DATABASE_URL en backend/.env (si no existe, copia .env.example a .env y complétalo).';
+  }
+  return err.message || codigo || 'error desconocido';
+}
+
 async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.error('Error: falta DATABASE_URL. Crea backend/.env (copia .env.example) con la URL de tu base de datos de Supabase.');
+    process.exitCode = 1;
+    return;
+  }
+
   const pool = require('../src/config/db');
   try {
     const usuario = await crearUsuarioMunicipal(leerArgumentos(process.argv.slice(2)), pool);
     console.log('Usuario municipal creado:', usuario);
   } catch (err) {
-    console.error(`Error: ${err.code === '23505' ? 'ya existe un usuario con ese email o RUT' : err.message}`);
+    console.error(`Error: ${describirError(err)}`);
     process.exitCode = 1;
   } finally {
     await pool.end();

@@ -6,6 +6,11 @@ const { verificarToken, firmarTokenQr } = require('../utils/jwt');
 const { fechaYHoraSantiago } = require('../utils/fechas');
 const { esUuid, fechaIso, errorHttp } = require('../utils/validar');
 const documentoService = require('../services/documentoService');
+const totpService = require('../services/totpService');
+
+// Radio (m) alrededor del área de trabajo dentro del cual se acepta iniciar el
+// servicio cuando VALIDAR_UBICACION está activada.
+const RADIO_ACTIVACION_M = 50;
 
 const ESTADOS_RECHAZADO = ['RECHAZADO'];
 const ESTADOS_APROBADO_O_POSTERIOR = [
@@ -131,6 +136,24 @@ async function crear(req, res) {
 
   try {
     await client.query('BEGIN');
+
+    // La comuna limita dónde se puede reservar: debe estar habilitada y el
+    // área completa dentro de su contorno.
+    const { rows: comunaRows } = await client.query(
+      `SELECT habilitada,
+              (limite IS NOT NULL AND ST_Within(ST_GeomFromText($2, 4326), limite)) AS dentro
+       FROM comuna WHERE id = $1`,
+      [comuna_id, wkt]
+    );
+    if (!comunaRows[0]) {
+      throw errorHttp(400, 'La comuna seleccionada no existe');
+    }
+    if (!comunaRows[0].habilitada) {
+      throw errorHttp(422, 'Esta comuna todavía no está disponible', 'COMUNA_NO_HABILITADA');
+    }
+    if (!comunaRows[0].dentro) {
+      throw errorHttp(422, 'El área debe estar dentro de la comuna seleccionada', 'AREA_FUERA_DE_COMUNA');
+    }
 
     // Pertenencia: solo vehículos de la empresa del solicitante (o propios).
     if (idsVehiculos.length > 0) {
@@ -399,10 +422,69 @@ async function generarQrToken(req, res) {
   res.json({ token });
 }
 
+// GET /api/permisos/:id/qr-secreto — entrega el secreto del QR dinámico para
+// que el teléfono genere los códigos SIN conexión. Mismos permisos que qr-token.
+// El secreto se crea la primera vez y las siguientes se devuelve el mismo.
+async function qrSecreto(req, res) {
+  if (!esUuid(req.params.id)) {
+    return res.status(400).json({ error: 'id inválido' });
+  }
+
+  const { rows } = await pool.query('SELECT usuario_id FROM permiso WHERE id = $1', [req.params.id]);
+  const permiso = rows[0];
+
+  if (!permiso) {
+    return res.status(404).json({ error: 'Permiso no encontrado' });
+  }
+
+  const esCodigoChofer = req.usuario.rol === 'CODIGO_CHOFER' && req.usuario.permisoId === req.params.id;
+  if (!esCodigoChofer && permiso.usuario_id !== req.usuario.sub) {
+    return res.status(403).json({ error: 'Sin acceso a este permiso' });
+  }
+
+  // ON CONFLICT DO NOTHING + SELECT: dos pedidos simultáneos terminan con el mismo secreto.
+  await pool.query(
+    `INSERT INTO permiso_qr_secreto (permiso_id, secreto) VALUES ($1, $2)
+     ON CONFLICT (permiso_id) DO NOTHING`,
+    [req.params.id, totpService.generarSecreto()]
+  );
+  const { rows: secretoRows } = await pool.query('SELECT secreto FROM permiso_qr_secreto WHERE permiso_id = $1', [
+    req.params.id,
+  ]);
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    secreto: secretoRows[0].secreto,
+    periodo: totpService.PERIODO_SEGUNDOS,
+    digitos: totpService.DIGITOS,
+    algoritmo: totpService.ALGORITMO,
+    servidor_ahora: Date.now(),
+  });
+}
+
 // GET /api/permisos/qr/:token — el Supervisor/Inspector verifica el QR
 // escaneado: valida la firma/expiración y devuelve el mismo detalle completo
 // que GET /:id (respeta el control de acceso por comuna de ese endpoint).
 async function verificarQr(req, res) {
+  // QR dinámico (TOTP): VS1.<permisoId>.<codigo de 8 dígitos>. Se compara el
+  // código del paso actual, el anterior y el siguiente (desfase de reloj).
+  const qrTotp = totpService.parsearQr(req.params.token);
+  if (qrTotp) {
+    if (!esUuid(qrTotp.permisoId)) {
+      return res.status(400).json({ error: 'QR inválido o expirado' });
+    }
+
+    const { rows } = await pool.query('SELECT secreto FROM permiso_qr_secreto WHERE permiso_id = $1', [qrTotp.permisoId]);
+    const valido = rows[0] && totpService.verificarCodigo(Buffer.from(rows[0].secreto, 'base64'), qrTotp.codigo);
+    if (!valido) {
+      return res.status(400).json({ error: 'QR inválido o expirado' });
+    }
+
+    req.params.id = qrTotp.permisoId.toLowerCase();
+    return detalle(req, res);
+  }
+
+  // Tokens JWT del QR anterior (siguen funcionando hasta que el frontend migre).
   let payload;
   try {
     payload = verificarToken(req.params.token);
@@ -508,6 +590,29 @@ async function activar(req, res) {
     return res.status(403).json({ error: 'Este código no corresponde a este servicio' });
   }
 
+  // Validación de ubicación en el servidor (apagada por defecto: VALIDAR_UBICACION=true
+  // la activa). La ubicación SOLO se usa para validar: no se guarda ni se registra
+  // en la bitácora (Ley 21.719).
+  if (process.env.VALIDAR_UBICACION === 'true') {
+    const { ubicacion } = req.body;
+    const lat = ubicacion?.lat;
+    const lng = ubicacion?.lng;
+    if (typeof lat !== 'number' || typeof lng !== 'number' || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+      return res
+        .status(400)
+        .json({ error: 'ubicacion { lat, lng } es obligatoria para iniciar el servicio', codigo: 'UBICACION_REQUERIDA' });
+    }
+
+    const { rows: cercania } = await pool.query(
+      `SELECT ST_DWithin(area::geography, ST_SetSRID(ST_MakePoint($2, $3), 4326)::geography, $4) AS dentro
+       FROM permiso WHERE id = $1 AND ($5::uuid IS NULL OR usuario_id = $5)`,
+      [req.params.id, lng, lat, RADIO_ACTIVACION_M, esCodigoChofer ? null : req.usuario.sub]
+    );
+    if (cercania[0] && !cercania[0].dentro) {
+      return res.status(422).json({ error: 'Estás fuera del área de trabajo', codigo: 'FUERA_DE_AREA' });
+    }
+  }
+
   const { rows } = await pool.query(
     `UPDATE permiso
      SET estado = 'ACTIVO',
@@ -572,13 +677,25 @@ async function rechazar(req, res) {
 
 // PATCH /api/permisos/:id/finalizar — el chofer cierra manualmente su
 // propio servicio antes de que se cumpla la ventana (o justo al terminar).
+// Acepta al dueño con cuenta (CHOFER o LOGISTICA) o a una sesión de código de
+// chofer — esta última solo sobre SU propio permiso y sin filtrar por usuario_id.
 async function finalizar(req, res) {
+  const esCodigoChofer = req.usuario.rol === 'CODIGO_CHOFER';
+
+  if (esCodigoChofer) {
+    if (req.usuario.permisoId !== req.params.id) {
+      return res.status(403).json({ error: 'Este código no corresponde a este servicio' });
+    }
+  } else if (!['CHOFER', 'LOGISTICA'].includes(req.usuario.rol)) {
+    return res.status(403).json({ error: 'Rol sin permiso para esta acción' });
+  }
+
   const { rows } = await pool.query(
     `UPDATE permiso
      SET estado = 'FINALIZADO'
-     WHERE id = $1 AND usuario_id = $2 AND estado = ANY($3::estado_permiso[])
+     WHERE id = $1 AND ($2::uuid IS NULL OR usuario_id = $2) AND estado = ANY($3::estado_permiso[])
      RETURNING id, estado, comuna_id`,
-    [req.params.id, req.usuario.sub, ESTADOS_FINALIZABLES]
+    [req.params.id, esCodigoChofer ? null : req.usuario.sub, ESTADOS_FINALIZABLES]
   );
 
   if (!rows[0]) {
@@ -589,7 +706,8 @@ async function finalizar(req, res) {
     permisoId: rows[0].id,
     comunaId: rows[0].comuna_id,
     tipoEvento: 'FINALIZACION_PERMISO',
-    actorId: req.usuario.sub,
+    actorId: esCodigoChofer ? null : req.usuario.sub,
+    detalle: esCodigoChofer ? { via: 'CODIGO_CHOFER' } : null,
   });
 
   res.json({ id: rows[0].id, estado: rows[0].estado });
@@ -1016,6 +1134,7 @@ module.exports = {
   operativo,
   operativos,
   generarQrToken,
+  qrSecreto,
   verificarQr,
   documento,
   solicitarRevision,

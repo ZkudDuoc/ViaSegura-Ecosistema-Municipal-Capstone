@@ -58,6 +58,11 @@ describe('E2E: ciclo de vida completo de un permiso', () => {
         return { rows: [{ id: VEHICULO_ID, patente: params[0], alto_m: params[1], ancho_m: params[2], largo_m: params[3], peso_ton: params[4], empresa_id: params[5], usuario_id: params[6] }] };
       }
 
+      // ---- la comuna limita dónde se puede reservar ----
+      if (text.includes('FROM comuna WHERE id = $1')) {
+        return { rows: [{ habilitada: true, dentro: true }] };
+      }
+
       // ---- pertenencia de vehículos al crear el permiso ----
       if (text.includes('FROM vehiculo') && text.includes('ANY($1::uuid[])')) {
         return { rows: params[0].map((id) => ({ id })) };

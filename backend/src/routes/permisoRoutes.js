@@ -16,6 +16,7 @@ const {
   operativo,
   operativos,
   generarQrToken,
+  qrSecreto,
   verificarQr,
   documento,
   solicitarRevision,
@@ -40,12 +41,13 @@ router.patch('/:id/solicitar-revision', requireAuth, requireRole(...ROLES_MUNICI
 router.patch('/:id/corregir', requireAuth, requireRole('CHOFER', 'LOGISTICA'), corregir);
 router.patch('/:id/reevaluar-riesgo', requireAuth, requireRole(...ROLES_MUNICIPALES), reevaluarRiesgo);
 router.patch('/:id/rechazar', requireAuth, requireRole(...ROLES_MUNICIPALES), rechazar);
-router.patch('/:id/finalizar', requireAuth, requireRole('CHOFER', 'LOGISTICA'), finalizar);
+router.patch('/:id/finalizar', requireAuthOCodigoChofer, finalizar);
 router.patch('/:id/revocar', requireAuth, requireRole(...ROLES_MUNICIPALES), revocar);
 router.patch('/:id/asignar-movil', requireAuth, requireRole(...ROLES_MUNICIPALES), asignarMovil);
 router.post('/:id/validar-patente', requireAuth, requireRole(...ROLES_MUNICIPALES), validarPatente);
 router.get('/:id/operativo', requireAuth, operativo);
 router.get('/:id/qr-token', requireAuthOCodigoChofer, generarQrToken);
+router.get('/:id/qr-secreto', requireAuthOCodigoChofer, qrSecreto);
 router.get('/:id/documento', requireAuth, documento);
 router.get('/:id/bitacora', requireAuth, bitacora);
 router.post('/:id/codigo-chofer', requireAuth, requireRole('CHOFER', 'LOGISTICA'), generarCodigoChofer);

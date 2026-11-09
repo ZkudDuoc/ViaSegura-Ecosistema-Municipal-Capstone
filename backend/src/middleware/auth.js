@@ -53,6 +53,10 @@ function requireAuthOCodigoChofer(req, res, next) {
         return res.status(403).json({ error: 'Este código no corresponde a este servicio' });
       }
       req.usuario = { rol: 'CODIGO_CHOFER', permisoId: payload.permisoId, sub: null, comuna_id: null };
+    } else if (payload.tipo) {
+      // Un token de QR (u otro tipo) no es una sesión: quien escanea un QR no
+      // puede usarlo para actuar sobre el permiso.
+      return res.status(401).json({ error: 'Token inválido para esta operación' });
     } else {
       req.usuario = payload;
     }
