@@ -257,13 +257,16 @@ describe('POST /api/permisos (crear) — Semana 6', () => {
 
   let cliente;
   let consultas;
+  let comuna;
 
   // Simula las consultas de la transacción y de la evaluación de riesgo.
   function prepararBase({ vehiculosEncontrados, trabajadoresCopiados = [] } = {}) {
     consultas = [];
+    comuna = { habilitada: true, dentro: true };
     const responder = (text, params = []) => {
       consultas.push(text.trim().split('\n')[0].trim());
       if (['BEGIN', 'COMMIT', 'ROLLBACK'].includes(text)) return { rows: [] };
+      if (text.includes('FROM comuna WHERE id = $1')) return { rows: [comuna] };
       if (text.includes('FROM vehiculo') && text.includes('ANY($1::uuid[])')) {
         return { rows: (vehiculosEncontrados ?? params[0]).map((id) => ({ id })) };
       }

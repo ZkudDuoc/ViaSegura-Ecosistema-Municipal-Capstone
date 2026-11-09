@@ -224,6 +224,16 @@ const FUE_APROBADO = `EXISTS (
     AND he.detalle->>'estado_nuevo' = 'APROBADO'
 )`;
 
+// Primera vez que el permiso pasó a APROBADO (por aprobación humana o por
+// silencio administrativo): base del tiempo promedio de aprobación.
+const PRIMERA_APROBACION = `(
+  SELECT min(he.created_at) AS aprobado_at FROM historial_eventos he
+  WHERE he.permiso_id = p.id AND he.tipo_evento = 'CAMBIO_ESTADO_PERMISO'
+    AND he.detalle->>'estado_nuevo' = 'APROBADO'
+)`;
+
+const HOY_CHILE = `(now() AT TIME ZONE '${ZONA}')::date`;
+
 // GET /api/empresa/estadisticas?desde=&hasta=&agrupar=mes|semana — datos para
 // los gráficos. Rango máximo de 1 año (por defecto los últimos 180 días).
 async function estadisticas(req, res) {
@@ -276,11 +286,7 @@ async function estadisticas(req, res) {
     pool.query(
       `SELECT round(avg(extract(epoch FROM (a.aprobado_at - p.created_at)) / 3600)::numeric, 2) AS horas
        FROM permiso p
-       JOIN LATERAL (
-         SELECT min(he.created_at) AS aprobado_at FROM historial_eventos he
-         WHERE he.permiso_id = p.id AND he.tipo_evento = 'CAMBIO_ESTADO_PERMISO'
-           AND he.detalle->>'estado_nuevo' = 'APROBADO'
-       ) a ON a.aprobado_at IS NOT NULL
+       JOIN LATERAL ${PRIMERA_APROBACION} a ON a.aprobado_at IS NOT NULL
        WHERE p.empresa_id = $1 AND p.created_at BETWEEN $2 AND $3`,
       [empresaId, desde, hasta]
     ),
@@ -298,4 +304,82 @@ async function estadisticas(req, res) {
   });
 }
 
-module.exports = { solicitudes, multasDeSolicitud, resumen, estadisticas };
+// GET /api/empresa/cumplimiento — panel de cumplimiento: documentos de los
+// trabajadores ACTIVOS vencidos o por vencer (30 días), multas y resultado de
+// las solicitudes. A diferencia de /resumen, incluye los ya vencidos.
+// tasa_aprobacion es un porcentaje (0-100, un decimal) = aprobadas / total.
+async function cumplimiento(req, res) {
+  const empresaId = empresaDe(req, res);
+  if (!empresaId) return;
+
+  const columnasTrabajador = `id, nombre, rut, cargo,
+    to_char(contrato_vigente_hasta, 'YYYY-MM-DD') AS contrato_vigente_hasta,
+    to_char(epp_vigente_hasta, 'YYYY-MM-DD') AS epp_vigente_hasta`;
+
+  const [vencidos, porVencer, multas, multasRecientes, solicitudes, tiempo] = await Promise.all([
+    pool.query(
+      `SELECT ${columnasTrabajador} FROM trabajador
+       WHERE empresa_id = $1 AND activo = true
+         AND (contrato_vigente_hasta < ${HOY_CHILE} OR epp_vigente_hasta < ${HOY_CHILE})
+       ORDER BY least(contrato_vigente_hasta, epp_vigente_hasta), nombre`,
+      [empresaId]
+    ),
+    pool.query(
+      `SELECT ${columnasTrabajador} FROM trabajador
+       WHERE empresa_id = $1 AND activo = true
+         AND (contrato_vigente_hasta BETWEEN ${HOY_CHILE} AND ${HOY_CHILE} + 30
+              OR epp_vigente_hasta BETWEEN ${HOY_CHILE} AND ${HOY_CHILE} + 30)
+       ORDER BY least(contrato_vigente_hasta, epp_vigente_hasta), nombre`,
+      [empresaId]
+    ),
+    pool.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE i.fecha >= now() - interval '30 days')::int AS ultimos_30_dias
+       FROM infraccion i JOIN permiso p ON p.id = i.permiso_id
+       WHERE p.empresa_id = $1`,
+      [empresaId]
+    ),
+    pool.query(
+      `SELECT i.id, i.fecha, i.descripcion, i.permiso_id
+       FROM infraccion i JOIN permiso p ON p.id = i.permiso_id
+       WHERE p.empresa_id = $1
+       ORDER BY i.fecha DESC LIMIT 5`,
+      [empresaId]
+    ),
+    pool.query(
+      `SELECT count(*)::int AS total,
+              count(*) FILTER (WHERE ${FUE_APROBADO})::int AS aprobadas,
+              count(*) FILTER (WHERE p.estado = 'RECHAZADO')::int AS rechazadas
+       FROM permiso p WHERE p.empresa_id = $1`,
+      [empresaId]
+    ),
+    pool.query(
+      `SELECT round(avg(extract(epoch FROM (a.aprobado_at - p.created_at)) / 3600)::numeric, 2) AS horas
+       FROM permiso p
+       JOIN LATERAL ${PRIMERA_APROBACION} a ON a.aprobado_at IS NOT NULL
+       WHERE p.empresa_id = $1`,
+      [empresaId]
+    ),
+  ]);
+
+  const s = solicitudes.rows[0];
+  const horas = tiempo.rows[0]?.horas;
+
+  res.json({
+    trabajadores: { vencidos: vencidos.rows, por_vencer: porVencer.rows },
+    multas: {
+      total: multas.rows[0].total,
+      ultimos_30_dias: multas.rows[0].ultimos_30_dias,
+      recientes: multasRecientes.rows,
+    },
+    solicitudes: {
+      total: s.total,
+      aprobadas: s.aprobadas,
+      rechazadas: s.rechazadas,
+      tasa_aprobacion: s.total > 0 ? Math.round((s.aprobadas / s.total) * 1000) / 10 : 0,
+    },
+    tiempo_promedio_aprobacion_horas: horas === null || horas === undefined ? null : Number(horas),
+  });
+}
+
+module.exports = { solicitudes, multasDeSolicitud, resumen, estadisticas, cumplimiento };

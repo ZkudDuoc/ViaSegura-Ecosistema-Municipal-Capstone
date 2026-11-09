@@ -36,10 +36,13 @@ function rangoFechasValidado({ desde, hasta }, { defectoDias = 30, maxDias = 365
 
 // Error con mensaje seguro para el cliente: el handler global lo devuelve tal
 // cual (los demás errores se reemplazan por mensajes genéricos).
-function errorHttp(status, mensaje) {
+// `codigo` (opcional) es un identificador estable para que el frontend decida
+// qué mostrar sin depender del texto (p. ej. COMUNA_NO_HABILITADA).
+function errorHttp(status, mensaje, codigo) {
   const err = new Error(mensaje);
   err.status = status;
   err.publico = true;
+  if (codigo) err.codigo = codigo;
   return err;
 }
 

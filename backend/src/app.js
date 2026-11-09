@@ -70,7 +70,7 @@ app.use((err, req, res, next) => {
   // Errores creados con errorHttp(): su mensaje es seguro para el cliente y
   // son esperables (validación, permisos): no se registran como fallas.
   if (err.publico) {
-    return res.status(err.status ?? 400).json({ error: err.message });
+    return res.status(err.status ?? 400).json({ error: err.message, ...(err.codigo ? { codigo: err.codigo } : {}) });
   }
 
   console.error(err);
