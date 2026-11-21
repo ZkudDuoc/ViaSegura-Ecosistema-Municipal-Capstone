@@ -9,16 +9,27 @@ const codigoChoferService = require('../../src/services/codigoChoferService');
 beforeEach(() => pool.query.mockReset());
 
 describe('generarCodigo', () => {
-  test('inserta un código largo (32 hex) ligado al permiso, con expiración a 24h', async () => {
+  test('inserta un código corto (4 letras y 2 números) ligado al permiso, con expiración a 24h', async () => {
     pool.query.mockResolvedValue({ rows: [{ id: 'cc-1', codigo: 'abc', expira_at: '2026-01-02' }] });
 
     await codigoChoferService.generarCodigo('permiso-1', 'logistica-1');
 
     const [permisoId, codigo, horas, creadoPor] = pool.query.mock.calls[0][1];
     expect(permisoId).toBe('permiso-1');
-    expect(codigo).toMatch(/^[0-9a-f]{32}$/);
+    expect(codigo).toMatch(/^[A-HJ-NP-Z]{4}[0-9]{2}$/);
     expect(horas).toBe(24);
     expect(creadoPor).toBe('logistica-1');
+  });
+
+  test('si el código choca con uno existente, reintenta con otro', async () => {
+    pool.query
+      .mockRejectedValueOnce(Object.assign(new Error('duplicado'), { code: '23505' }))
+      .mockResolvedValueOnce({ rows: [{ id: 'cc-2', codigo: 'KMTR47', expira_at: '2026-01-02' }] });
+
+    const codigo = await codigoChoferService.generarCodigo('permiso-1', 'logistica-1');
+
+    expect(codigo.id).toBe('cc-2');
+    expect(pool.query).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -46,5 +57,13 @@ describe('canjearCodigo', () => {
 
     // El UPDATE debe exigir usado=false y no vencido -> un solo uso.
     expect(pool.query.mock.calls[0][0]).toMatch(/usado = false AND expira_at > now\(\)/);
+  });
+
+  test('acepta el código en minúsculas o con espacios', async () => {
+    pool.query.mockResolvedValue({ rows: [{ id: 'cc-1', permiso_id: 'permiso-1' }] });
+
+    await codigoChoferService.canjearCodigo(' kmtr 47 ');
+
+    expect(pool.query.mock.calls[0][1]).toEqual(['KMTR47']);
   });
 });

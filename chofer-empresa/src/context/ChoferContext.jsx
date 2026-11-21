@@ -43,7 +43,7 @@ export function ChoferProvider({ children }) {
   }, [sesiones]);
 
   const agregarCodigo = useCallback(async (codigo) => {
-    const limpio = codigo.trim().toLowerCase().replace(/\s/g, "");
+    const limpio = codigo.trim().toUpperCase().replace(/\s/g, "");
     const { token, permiso_id: permisoId } = await canjearCodigo(limpio);
     // Se descarga apenas entra: después puede quedarse sin señal.
     await descargarQr(permisoId, token).catch(() => { });
