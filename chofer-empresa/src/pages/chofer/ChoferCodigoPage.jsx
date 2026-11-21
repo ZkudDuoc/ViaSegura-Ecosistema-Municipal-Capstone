@@ -46,10 +46,11 @@ export default function ChoferCodigoPage() {
           <input
             id="codigo"
             value={codigo}
-            onChange={(e) => setCodigo(e.target.value)}
-            placeholder="Pega aquí el código"
+            onChange={(e) => setCodigo(e.target.value.toUpperCase())}
+            placeholder="Ej: KMTR47"
+            maxLength={6}
             autoComplete="off"
-            autoCapitalize="none"
+            autoCapitalize="characters"
             spellCheck={false}
             required
           />
