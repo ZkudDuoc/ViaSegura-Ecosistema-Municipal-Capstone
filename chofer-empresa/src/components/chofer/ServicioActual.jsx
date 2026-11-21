@@ -29,6 +29,11 @@ const RIESGO = {
   Medio: { clase: "riesgo-medio", aviso: "Mantente atento a tu entorno durante el trabajo." },
   Alto: { clase: "riesgo-alto", aviso: "Zona de riesgo alto: mantente atento y ten a mano el botón de pánico." },
 };
+function resumenCorto(explicacion) {
+  const corte = explicacion.indexOf(" (misma época");
+  return corte === -1 ? explicacion.split(". ")[0] : explicacion.slice(0, corte);
+}
+
 
 function RiesgoSector({ riesgo }) {
   if (!riesgo) {
@@ -48,7 +53,7 @@ function RiesgoSector({ riesgo }) {
         <span className="riesgo-sector-puntaje">{Math.round(Number(riesgo.score))} / 100</span>
       </div>
       {aviso && <p className="riesgo-sector-aviso">{aviso}</p>}
-      {riesgo.explicacion && <p className="riesgo-sector-explicacion">{riesgo.explicacion}</p>}
+      {riesgo.explicacion && <p className="riesgo-sector-explicacion">{resumenCorto(riesgo.explicacion)}</p>}
     </div>
   );
 }
